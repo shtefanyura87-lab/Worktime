@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#121212">
+    <title>Ткацкий Цех PRO</title>
+    
+    <link rel="manifest" href='data:application/manifest+json,{"name":"График Смен","short_name":"Смены","start_url":".","display":"standalone","background_color":"#121212","theme_color":"#121212","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/2329/2329087.png","sizes":"512x512","type":"image/png"}]}'>
+
+    <style>
+        :root {
+            --bg: #121212;
+            --card: #1e1e1e;
+            --accent: #03dac6;
+            --text: #e0e0e0;
+            --error: #cf6679;
+            --input-bg: #2c2c2c;
+            --border: #333;
+        }
+
+        body {
+            font-family: -apple-system, system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 10px;
+            padding-bottom: 60px;
+        }
+
+        .global-card {
+            background: var(--card);
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            border: 1px solid var(--border);
+        }
+
+        .row { display: flex; gap: 8px; margin-bottom: 10px; }
+        .col { flex: 1; display: flex; flex-direction: column; }
+
+        label { font-size: 0.7rem; color: #888; margin-bottom: 4px; text-transform: uppercase; font-weight: bold; }
+
+        select, input {
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            color: #fff;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+        }
+
+        .machine-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 15px;
+            border-left: 4px solid var(--accent);
+            margin-bottom: 15px;
+            border: 1px solid var(--border);
+        }
+
+        .machine-title {
+            background: transparent;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--accent);
+            width: 100%;
+            margin-bottom: 10px;
+            border: none;
+            border-bottom: 1px dashed #444;
+        }
+
+        .prediction-block {
+            background: #263238;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border: 1px solid #37474f;
+        }
+
+        .predict-btn {
+            background: var(--accent);
+            color: #000;
+            border: none;
+            padding: 10px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 0.8rem;
+            width: 100%;
+            margin-top: 8px;
+        }
+
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+            font-size: 0.85rem;
+        }
+
+        input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--accent); }
+
+        .roll-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #2a2a2a;
+        }
+
+        .roll-item input[type="time"] {
+            background: #000;
+            border: 1px solid #444;
+            padding: 4px;
+            width: 85px;
+            color: var(--accent);
+            font-size: 1rem;
+        }
+
+        .over-shift { color: var(--error); font-weight: bold; font-size: 0.75rem; }
+        .lunch-tag { color: #ffa726; font-size: 0.6rem; margin-left: 5px; border: 1px solid #ffa726; padding: 1px 3px; border-radius: 4px; }
+        
+        .reset-btn {
+            background: transparent;
+            color: var(--error);
+            border: 1px solid var(--error);
+            padding: 10px;
+            border-radius: 8px;
+            width: 90%;
+            margin: 20px auto;
+            display: block;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app-content">
+    <div class="global-card">
+        <div class="row">
+            <div class="col">
+                <label>Смена</label>
+                <select id="shift" onchange="applyShift()">
+                    <option value="06:00|14:00|10:00">1-я (06 - 14)</option>
+                    <option value="14:00|22:00|18:00">2-я (14 - 22)</option>
+                    <option value="22:00|06:00|02:00">3-я (22 - 06)</option>
+                </select>
+            </div>
+            <div class="col">
+                <label>Чистка (мин)</label>
+                <input type="number" id="cleaning" value="12" oninput="saveData(); recalcAll()">
+            </div>
+        </div>
+        <div class="row">
+            <div class="col">
+                <label>Начало обеда</label>
+                <input type="time" id="lunchStart" oninput="saveData(); recalcAll()">
+            </div>
+        </div>
+    </div>
+
+    <div id="machines-container"></div>
+</div>
+
+<button class="reset-btn" onclick="clearAllData()">Сбросить всё (если машины пропали)</button>
+
+<script>
+    // Заглушка Service Worker для Chrome
+    if ('serviceWorker' in navigator) {
+        const sw = 'data:text/javascript;base64,c2VsZi5hZGRFdmVudExpc3RlbmVyKCdmZXRjaCcsIGUgPT4geyBlLnJlc3BvbmRXaXRoKGZldGNoKGUucmVxdWVzdCkpOyB9KTs=';
+        navigator.serviceWorker.register(sw).catch(() => {});
+    }
+
+    const machineIds = [1, 2, 3];
+    let overrides = { 1: {}, 2: {}, 3: {} };
+
+    // Безопасная загрузка данных
+    function loadSavedData() {
+        try {
+            const data = localStorage.getItem('mApp_v3_data');
+            return data ? JSON.parse(data) : {};
+        } catch (e) {
+            console.error("Ошибка загрузки данных", e);
+            return {};
+        }
+    }
+
+    function init() {
+        const container = document.getElementById('machines-container');
+        if (!container) return;
+        
+        container.innerHTML = ''; // Очистка перед отрисовкой
+        const savedData = loadSavedData();
+        
+        const cleaningVal = localStorage.getItem('mApp_v3_cleaning') || 12;
+        const lunchVal = localStorage.getItem('mApp_v3_lunchStart');
+        
+        document.getElementById('cleaning').value = cleaningVal;
+        
+        machineIds.forEach(id => {
+            const mData = savedData[id] || { name: `Машина ${id}`, revs: 5000, speed: 100, lunch: true };
+            
+            const card = document.createElement('div');
+            card.className = 'machine-card';
+            card.innerHTML = `
+                <input type="text" class="machine-title" id="name-${id}" value="${mData.name}" oninput="saveData()">
+                <div class="row">
+                    <div class="col"><label>Старт</label><input type="time" id="start-${id}" value="06:00" oninput="resetManual(${id})"></div>
+                    <div class="col"><label>Обороты</label><input type="number" id="revs-${id}" value="${mData.revs}" oninput="saveData(); recalc(${id})"></div>
+                    <div class="col"><label>Об/мин</label><input type="number" id="speed-${id}" value="${mData.speed}" oninput="saveData(); recalc(${id})"></div>
+                </div>
+                
+                <div class="prediction-block">
+                    <label style="color:var(--accent)">Ввести текущие обороты:</label>
+                    <div class="row" style="margin-top:5px;">
+                        <input type="number" id="curRevs-${id}" placeholder="Сделано..." style="flex:2">
+                        <button class="predict-btn" onclick="predict(${id})" style="flex:1; margin:0">Прогноз</button>
+                    </div>
+                </div>
+
+                <div class="checkbox-row">
+                    <input type="checkbox" id="lunch-${id}" ${mData.lunch ? 'checked' : ''} onchange="saveData(); recalc(${id})">
+                    <span>Учитывать обед (30 мин)</span>
+                </div>
+                <div id="list-${id}"></div>
+            `;
+            container.appendChild(card);
+        });
+
+        if (lunchVal) {
+            document.getElementById('lunchStart').value = lunchVal;
+            recalcAll();
+        } else {
+            applyShift();
+        }
+    }
+
+    function predict(id) {
+        const curRevs = +document.getElementById(`curRevs-${id}`).value;
+        const totalRevs = +document.getElementById(`revs-${id}`).value;
+        const speed = +document.getElementById(`speed-${id}`).value;
+        
+        if (speed <= 0 || curRevs >= totalRevs) return alert("Проверьте данные!");
+
+        const now = new Date();
+        const minutesLeft = Math.ceil((totalRevs - curRevs) / speed);
+        const finishTimeMin = (now.getHours() * 60 + now.getMinutes() + minutesLeft) % 1440;
+        
+        updateRoll(id, 0, minToTime(finishTimeMin));
+        document.getElementById(`curRevs-${id}`).value = '';
+    }
+
+    function applyShift() {
+        const [start, end, lunch] = document.getElementById('shift').value.split('|');
+        document.getElementById('lunchStart').value = lunch;
+        machineIds.forEach(id => {
+            document.getElementById(`start-${id}`).value = start;
+            overrides[id] = {};
+            recalc(id);
+        });
+        saveData();
+    }
+
+    function saveData() {
+        const dataToSave = {};
+        machineIds.forEach(id => {
+            const nameEl = document.getElementById(`name-${id}`);
+            const revsEl = document.getElementById(`revs-${id}`);
+            const speedEl = document.getElementById(`speed-${id}`);
+            const lunchEl = document.getElementById(`lunch-${id}`);
+            if (nameEl && revsEl && speedEl && lunchEl) {
+                dataToSave[id] = {
+                    name: nameEl.value,
+                    revs: revsEl.value,
+                    speed: speedEl.value,
+                    lunch: lunchEl.checked
+                };
+            }
+        });
+        localStorage.setItem('mApp_v3_data', JSON.stringify(dataToSave));
+        localStorage.setItem('mApp_v3_cleaning', document.getElementById('cleaning').value);
+        localStorage.setItem('mApp_v3_lunchStart', document.getElementById('lunchStart').value);
+    }
+
+    function timeToMin(s) { if(!s) return 0; const [h, m] = s.split(':').map(Number); return h * 60 + m; }
+    function minToTime(m) { m = (m + 1440) % 1440; return `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`; }
+
+    function resetManual(id) { overrides[id] = {}; recalc(id); }
+
+    function updateRoll(mId, rollIdx, val) {
+        overrides[mId][rollIdx] = val;
+        Object.keys(overrides[mId]).forEach(k => { if(parseInt(k) > rollIdx) delete overrides[mId][k]; });
+        recalc(mId);
+    }
+
+    function recalc(id) {
+        const startStr = document.getElementById(`start-${id}`).value;
+        const revs = +document.getElementById(`revs-${id}`).value;
+        const speed = +document.getElementById(`speed-${id}`).value;
+        const lunchActive = document.getElementById(`lunch-${id}`).checked;
+        const cleaning = +document.getElementById('cleaning').value;
+        const lunchStartMin = timeToMin(document.getElementById('lunchStart').value);
+        const shiftStartMin = timeToMin(document.getElementById('shift').value.split('|')[0]);
+        const list = document.getElementById(`list-${id}`);
+        
+        let currentMin = timeToMin(startStr);
+        const rollTime = speed > 0 ? Math.ceil(revs / speed) : 0;
+        let lunchApplied = false;
+        
+        if (!list) return;
+        list.innerHTML = '';
+        if (rollTime === 0) return;
+
+        for (let i = 0; i < 15; i++) {
+            if (overrides[id][i]) currentMin = timeToMin(overrides[id][i]) - rollTime;
+
+            let finishNoLunch = currentMin + rollTime;
+            let hasLunch = false;
+            
+            if (lunchActive && !lunchApplied) {
+                let diffF = (finishNoLunch >= shiftStartMin) ? (finishNoLunch - shiftStartMin) : (1440 - shiftStartMin + finishNoLunch);
+                let diffL = (lunchStartMin >= shiftStartMin) ? (lunchStartMin - shiftStartMin) : (1440 - shiftStartMin + lunchStartMin);
+                if (diffF > diffL) { currentMin += 30; lunchApplied = true; hasLunch = true; }
+            }
+
+            let finish = currentMin + rollTime;
+            let diffTotal = (finish >= shiftStartMin) ? (finish - shiftStartMin) : (1440 - shiftStartMin + finish);
+            let isOver = diffTotal > 480;
+
+            const div = document.createElement('div');
+            div.className = 'roll-item';
+            div.innerHTML = `
+                <span>№${i+1} ${isOver ? '<span class="over-shift">(Вне смены)</span>' : ''} ${hasLunch ? '<span class="lunch-tag">ОБЕД</span>' : ''}</span>
+                <input type="time" value="${minToTime(finish)}" onchange="updateRoll(${id}, ${i}, this.value)">
+            `;
+            list.appendChild(div);
+            if (isOver) break;
+            currentMin = finish + cleaning;
+        }
+    }
+
+    function recalcAll() { machineIds.forEach(id => recalc(id)); }
+    
+    function clearAllData() {
+        if(confirm("Полный сброс всех настроек и данных?")) {
+            localStorage.clear();
+            location.reload();
+        }
+    }
+
+    window.onload = init;
+</script>
+</body>
+</html>
