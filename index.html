@@ -326,4 +326,33 @@
                     }
                 }
 
-                let finish = currentMin +
+                let finish = currentMin + rollTime;
+                let diffTotal = (finish >= shiftSMin) ? (finish - shiftSMin) : (1440 - shiftSMin + finish);
+                let isOver = diffTotal > 480;
+
+                const div = document.createElement('div');
+                div.className = 'roll-item';
+                div.innerHTML = `
+                    <span>№${i+1}${hasLunch ? '<span class="lunch-tag">ОБЕД</span>' : ''}${isOver ? '<span class="over-shift"> (Вне)</span>' : ''}</span>
+                    <input type="time" value="${minToTime(finish)}" onchange="updateRoll(${id}, ${i}, this.value)">
+                `;
+                list.appendChild(div);
+                if (isOver) break;
+                currentMin = finish + cleaning;
+            }
+        } catch (e) { console.error("Ошибка в расчете машины " + id, e); }
+    }
+
+    function recalcAll() { machineIds.forEach(id => recalc(id)); }
+    
+    function clearAllData() {
+        if(confirm("ВНИМАНИЕ! Это удалит все настройки и названия машин. Продолжить?")) {
+            localStorage.clear();
+            location.reload();
+        }
+    }
+
+    window.onload = init;
+</script>
+</body>
+</html>
