@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#121212">
+    <title>Ткацкий Цех PRO v13</title>
+    
+    <style>
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        :root {
+            --bg: #121212; --card: #1e1e1e; --accent: #03dac6; --text: #e0e0e0;
+            --error: #cf6679; --warning: #ffa726; --input-bg: #2c2c2c; --border: #333; --done: #444;
+        }
+        body {
+            font-family: -apple-system, system-ui, sans-serif;
+            background-color: var(--bg); color: var(--text);
+            margin: 0; padding: 8px; padding-bottom: 80px;
+            width: 100%; overflow-x: hidden;
+        }
+        .global-card {
+            background: var(--card); padding: 12px; border-radius: 12px;
+            margin-bottom: 12px; border: 1px solid var(--border);
+        }
+        .row { display: flex; gap: 8px; margin-bottom: 10px; align-items: flex-end; }
+        .col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+        label { font-size: 0.65rem; color: #888; margin-bottom: 4px; text-transform: uppercase; font-weight: bold; }
+        
+        select, input {
+            background: var(--input-bg); border: 1px solid var(--border);
+            color: #fff; padding: 12px; border-radius: 8px; font-size: 1rem;
+            outline: none; width: 100%;
+        }
+
+        /* Стильный переключатель (Toggle) */
+        .switch-label {
+            display: flex; align-items: center; justify-content: space-between;
+            background: #252525; padding: 8px 12px; border-radius: 8px;
+            cursor: pointer; border: 1px solid var(--border);
+        }
+        .switch-text { font-size: 0.85rem; font-weight: 500; }
+        .switch-input { display: none; }
+        .switch-visual {
+            width: 40px; height: 20px; background: #444;
+            border-radius: 20px; position: relative; transition: 0.3s;
+        }
+        .switch-visual::after {
+            content: ''; position: absolute; width: 16px; height: 16px;
+            background: #fff; border-radius: 50%; top: 2px; left: 2px; transition: 0.3s;
+        }
+        .switch-input:checked + .switch-visual { background: var(--accent); }
+        .switch-input:checked + .switch-visual::after { left: 22px; }
+
+        .machine-card {
+            background: var(--card); border-radius: 14px; padding: 14px;
+            border-left: 5px solid var(--accent); margin-bottom: 15px;
+            border: 1px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .machine-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .machine-title {
+            background: transparent; font-size: 1.2rem; font-weight: bold;
+            color: var(--accent); border: none; border-bottom: 1px dashed #444;
+            padding: 2px 0; width: 55%;
+        }
+        .countdown-timer { font-family: 'Courier New', monospace; font-size: 1.3rem; font-weight: bold; color: var(--accent); }
+        .timer-warning { color: var(--warning); }
+        .timer-critical { color: var(--error); animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.4; } }
+
+        .prediction-block {
+            background: #1a2a2a; padding: 12px; border-radius: 10px;
+            margin: 10px 0; border: 1px solid #2d4a4a;
+        }
+        .predict-btn {
+            background: var(--accent); color: #000; border: none;
+            padding: 10px 15px; border-radius: 8px; font-weight: bold; font-size: 0.85rem;
+        }
+        .roll-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #2a2a2a; }
+        .roll-item.done { opacity: 0.3; }
+        .roll-item input[type="time"] {
+            background: #000; width: 90px; padding: 5px; color: var(--accent);
+            border: 1px solid #444; border-radius: 5px; text-align: center;
+        }
+        .btn-test {
+            background: #1a237e; color: #fff; border: none; padding: 8px;
+            border-radius: 6px; width: 100%; font-size: 0.75rem; margin-bottom: 10px;
+        }
+        .emergency-btn {
+            background: #331111; color: #ff5555; border: 1px solid #441111;
+            padding: 6px; border-radius: 6px; width: 100%; font-size: 0.65rem; margin-bottom: 10px;
+        }
+        .lunch-tag { color: orange; font-size: 0.6rem; border: 1px solid orange; padding: 1px 4px; border-radius: 4px; margin-left: 5px; vertical-align: middle; }
+    </style>
+</head>
+<body>
+
+<button class="emergency-btn" onclick="hardReset()">СБРОСИТЬ ВСЕ ДАННЫЕ</button>
+
+<div class="global-card">
+    <button class="btn-test" onclick="testNotification()">🔊 ПРОВЕРИТЬ ЗВУК И СИГНАЛ</button>
+    <div class="row">
+        <div class="col" style="flex: 1.5;">
+            <label>Смена</label>
+            <select id="shift" onchange="applyShift(true)">
+                <option value="06:00|14:00|10:00">1-я (06 - 14)</option>
+                <option value="14:00|22:00|18:00">2-я (14 - 22)</option>
+                <option value="22:00|06:00|02:00">3-я (22 - 06)</option>
+            </select>
+        </div>
+        <div class="col">
+            <label>Чистка (м)</label>
+            <input type="number" id="cleaning" value="12" oninput="saveSettings(); recalcAll()">
+        </div>
+    </div>
+</div>
+
+<div id="machines-container"></div>
+
+<script>
+    const machineIds = [1, 2, 3];
+    let overrides = { 1: {}, 2: {}, 3: {} };
+    let notifiedRolls = new Set();
+
+    function timeToMin(s) { if(!s) return 0; const [h, m] = s.split(':').map(Number); return h * 60 + m; }
+    function minToTime(m) { m = (m + 1440) % 1440; return `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`; }
+
+    function getAutoShiftIndex() {
+        const h = new Date().getHours();
+        if (h >= 6 && h < 14) return 0;
+        if (h >= 14 && h < 22) return 1;
+        return 2;
+    }
+
+    function init() {
+        const container = document.getElementById('machines-container');
+        let savedSettings = {};
+        try {
+            savedSettings = JSON.parse(localStorage.getItem('mApp_v13_settings')) || {};
+            overrides = JSON.parse(localStorage.getItem('mApp_v13_overrides')) || { 1: {}, 2: {}, 3: {} };
+        } catch(e) { localStorage.clear(); }
+
+        const shiftIdx = localStorage.getItem('mApp_v13_shiftIdx') ?? getAutoShiftIndex();
+        document.getElementById('shift').selectedIndex = shiftIdx;
+        document.getElementById('cleaning').value = localStorage.getItem('mApp_v13_cleaning') || 12;
+        
+        const currentShiftStart = document.getElementById('shift').value.split('|')[0];
+
+        let html = '';
+        machineIds.forEach(id => {
+            const mData = savedSettings[id] || { name: `Машина ${id}`, revs: 5000, speed: 100, start: currentShiftStart };
+            html += `
+                <div class="machine-card">
+                    <div class="machine-header">
+                        <input type="text" class="machine-title" id="name-${id}" value="${mData.name}" oninput="saveSettings()">
+                        <div class="countdown-timer" id="timer-${id}">00:00:00</div>
+                    </div>
+                    <div class="row">
+                        <div class="col"><label>Старт</label><input type="time" id="start-${id}" value="${mData.start}" oninput="saveSettings(); resetManual(${id})"></div>
+                        <div class="col"><label>Об.</label><input type="number" id="revs-${id}" value="${mData.revs}" oninput="saveSettings(); recalc(${id})"></div>
+                        <div class="col"><label>Ск.</label><input type="number" id="speed-${id}" value="${mData.speed}" oninput="saveSettings(); recalc(${id})"></div>
+                    </div>
+                    <div class="prediction-block">
+                        <div class="row" style="margin:0; align-items:center;">
+                            <div class="col"><input type="number" id="curRevs-${id}" placeholder="Тек. обороты"></div>
+                            <button class="predict-btn" onclick="predict(${id})">ПРОГНОЗ</button>
+                        </div>
+                    </div>
+                    <div class="row" style="margin-top:10px;">
+                        <div class="col">
+                            <label class="switch-label">
+                                <span class="switch-text">Учитывать обед</span>
+                                <input type="checkbox" class="switch-input" id="lunch-${id}" checked onchange="saveSettings(); recalc(${id})">
+                                <div class="switch-visual"></div>
+                            </label>
+                        </div>
+                        <div class="col" style="flex:0.5; justify-content:center;">
+                            <span onclick="clearMachineOverrides(${id})" style="font-size:0.7rem; color:#888; text-decoration:underline; text-align:right;">Сброс</span>
+                        </div>
+                    </div>
+                    <div id="list-${id}"></div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+        setTimeout(() => { recalcAll(); setInterval(tick, 1000); }, 100);
+    }
+
+    function tick() {
+        const now = new Date();
+        const nowSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+        
+        machineIds.forEach(id => {
+            const timerEl = document.getElementById(`timer-${id}`);
+            const list = document.getElementById(`list-${id}`);
+            if (!timerEl || !list) return;
+
+            const times = list.querySelectorAll('input[type="time"]');
+            let nextFinish = null;
+            let rollNum = 0;
+
+            for (let i = 0; i < times.length; i++) {
+                let fSec = timeToMin(times[i].value) * 60;
+                if (Math.abs(fSec - nowSec) > 43200) { if (fSec < nowSec) fSec += 86400; }
+                if (fSec > nowSec) { nextFinish = fSec; rollNum = i + 1; break; }
+            }
+
+            if (nextFinish) {
+                const diff = nextFinish - nowSec;
+                const h = Math.floor(diff / 3600);
+                const m = Math.floor((diff % 3600) / 60);
+                const s = diff % 60;
+                timerEl.innerText = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+                
+                timerEl.className = 'countdown-timer';
+                if (diff < 60) timerEl.classList.add('timer-critical');
+                else if (diff < 300) timerEl.classList.add('timer-warning');
+
+                if (diff === 0) sendNotification(id, rollNum);
+            } else { timerEl.innerText = "00:00:00"; }
+        });
+        if (now.getSeconds() === 0) recalcAll();
+    }
+
+    function testNotification() {
+        if (Notification.permission !== "granted") {
+            Notification.requestPermission().then(perm => {
+                if (perm === "granted") alert("Ура! Разрешение получено.");
+            });
+        }
+        playBeep();
+        new Notification("Тест пройден!", { body: "Теперь уведомления должны приходить." });
+    }
+
+    function playBeep() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.frequency.value = 880; gain.gain.value = 0.1;
+            osc.start(); osc.stop(ctx.currentTime + 0.5);
+        } catch(e) {}
+    }
+
+    function sendNotification(id, num) {
+        playBeep();
+        const mName = document.getElementById(`name-${id}`).value;
+        if (Notification.permission === "granted") {
+            new Notification(`Съем №${num}`, { body: mName, icon: 'https://cdn-icons-png.flaticon.com/512/2329/2329087.png' });
+        }
+    }
+
+    function recalc(id) {
+        const list = document.getElementById(`list-${id}`);
+        if (!list) return;
+        try {
+            const spd = +document.getElementById(`speed-${id}`).value || 100;
+            const rev = +document.getElementById(`revs-${id}`).value || 5000;
+            const cln = +document.getElementById('cleaning').value || 12;
+            const shiftStart = document.getElementById('shift').value.split('|')[0];
+            const shiftSMin = timeToMin(shiftStart);
+            const lunchSMin = timeToMin(document.getElementById('shift').value.split('|')[2]);
+            const rollTime = Math.ceil(rev / spd);
+            const nowMin = (new Date().getHours() * 60 + new Date().getMinutes());
+
+            let currentMin = timeToMin(document.getElementById(`start-${id}`).value);
+            let html = '';
+            let lunchApplied = false;
+
+            for (let i = 0; i < 10; i++) {
+                if (overrides[id][i]) currentMin = timeToMin(overrides[id][i]) - rollTime;
+                
+                let hasLunch = false;
+                if (!lunchApplied && document.getElementById(`lunch-${id}`).checked) {
+                    let startRel = (currentMin >= shiftSMin) ? (currentMin - shiftSMin) : (1440 - shiftSMin + currentMin);
+                    let lunchRel = (lunchSMin >= shiftSMin) ? (lunchSMin - shiftSMin) : (1440 - shiftSMin + lunchSMin);
+                    if (startRel + rollTime > lunchRel) { currentMin += 30; lunchApplied = true; hasLunch = true; }
+                }
+
+                let finish = currentMin + rollTime;
+                let diffNow = (nowMin >= shiftSMin) ? (nowMin - shiftSMin) : (1440 - shiftSMin + nowMin);
+                let diffFin = (finish >= shiftSMin) ? (finish - shiftSMin) : (1440 - shiftSMin + finish);
+
+                html += `
+                    <div class="roll-item ${diffNow > diffFin ? 'done' : ''}">
+                        <span>№${i+1}${hasLunch ? '<span class="lunch-tag">ОБЕД</span>' : ''}</span>
+                        <input type="time" value="${minToTime(finish)}" onchange="updateRoll(${id}, ${i}, this.value)">
+                    </div>
+                `;
+                if (diffFin > 490) break;
+                currentMin = finish + cln;
+            }
+            list.innerHTML = html;
+        } catch(e) {}
+    }
+
+    function predict(id) {
+        const cur = +document.getElementById(`curRevs-${id}`).value;
+        const tot = +document.getElementById(`revs-${id}`).value;
+        const spd = +document.getElementById(`speed-${id}`).value;
+        if (spd <= 0 || cur >= tot) return;
+        const finMin = (new Date().getHours() * 60 + new Date().getMinutes() + Math.ceil((tot - cur) / spd)) % 1440;
+        updateRoll(id, 0, minToTime(finMin));
+        document.getElementById(`curRevs-${id}`).value = '';
+    }
+
+    function updateRoll(mId, idx, val) {
+        overrides[mId][idx] = val;
+        Object.keys(overrides[mId]).forEach(k => { if(parseInt(k) > idx) delete overrides[mId][k]; });
+        saveSettings(); recalc(mId);
+    }
+
+    function saveSettings() {
+        const data = {};
+        machineIds.forEach(id => {
+            const el = document.getElementById(`name-${id}`);
+            if (el) data[id] = { name: el.value, revs: document.getElementById(`revs-${id}`).value, speed: document.getElementById(`speed-${id}`).value, start: document.getElementById(`start-${id}`).value };
+        });
+        localStorage.setItem('mApp_v13_settings', JSON.stringify(data));
+        localStorage.setItem('mApp_v13_cleaning', document.getElementById('cleaning').value);
+        localStorage.setItem('mApp_v13_shiftIdx', document.getElementById('shift').selectedIndex);
+        localStorage.setItem('mApp_v13_overrides', JSON.stringify(overrides));
+    }
+
+    function hardReset() { if(confirm("Удалить все данные и настройки?")) { localStorage.clear(); location.reload(); } }
+    function clearMachineOverrides(id) { overrides[id] = {}; saveSettings(); recalc(id); }
+    function resetManual(id) { overrides[id] = {}; recalc(id); }
+    function recalcAll() { machineIds.forEach(id => recalc(id)); }
+    function applyShift(manual = false) {
+        const start = document.getElementById('shift').value.split('|')[0];
+        machineIds.forEach(id => { 
+            const el = document.getElementById(`start-${id}`);
+            if(el) el.value = start; 
+            overrides[id] = {}; recalc(id); 
+        });
+        saveSettings();
+    }
+
+    window.onload = init;
+</script>
+</body>
+</html>
