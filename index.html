@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#121212">
+    <title>Ткацкий Цех PRO v5</title>
+    
+    <link rel="manifest" href='data:application/manifest+json,{"name":"График Смен","short_name":"Смены","start_url":".","display":"standalone","background_color":"#121212","theme_color":"#121212","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/2329/2329087.png","sizes":"512x512","type":"image/png"}]}'>
+
+    <style>
+        /* Главное исправление для мобильных: паддинги больше не расширяют блоки */
+        * { box-sizing: border-box; }
+
+        :root {
+            --bg: #121212;
+            --card: #1e1e1e;
+            --accent: #03dac6;
+            --text: #e0e0e0;
+            --error: #cf6679;
+            --input-bg: #2c2c2c;
+            --border: #333;
+        }
+
+        body {
+            font-family: -apple-system, system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 8px; /* Чуть меньше отступы по краям */
+            padding-bottom: 60px;
+            overflow-x: hidden; /* Запрет горизонтального скролла */
+            width: 100%;
+        }
+
+        .global-card {
+            background: var(--card);
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+            width: 100%;
+        }
+
+        .row { 
+            display: flex; 
+            gap: 6px; 
+            margin-bottom: 8px; 
+            width: 100%;
+            align-items: flex-end;
+        }
+        
+        .col { 
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; 
+            min-width: 0; /* Важно для сжатия flex-элементов */
+        }
+
+        label { 
+            font-size: 0.6rem; 
+            color: #888; 
+            margin-bottom: 3px; 
+            text-transform: uppercase; 
+            white-space: nowrap; 
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        select, input {
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            color: #fff;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            outline: none;
+            width: 100%; /* Занимает всё доступное место в колонке */
+        }
+
+        .machine-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 12px;
+            border-left: 4px solid var(--accent);
+            margin-bottom: 12px;
+            border-top: 1px solid var(--border);
+            border-right: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .machine-title {
+            background: transparent;
+            font-size: 1rem;
+            font-weight: bold;
+            color: var(--accent);
+            width: 100%;
+            margin-bottom: 10px;
+            border: none;
+            border-bottom: 1px dashed #444;
+            padding: 4px 0;
+        }
+
+        .prediction-block {
+            background: #263238;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 8px 0;
+            border: 1px solid #37474f;
+        }
+
+        .predict-btn {
+            background: var(--accent);
+            color: #000;
+            border: none;
+            padding: 8px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 0.75rem;
+            white-space: nowrap;
+        }
+
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 8px 0;
+            font-size: 0.8rem;
+        }
+
+        input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; }
+
+        .roll-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid #2a2a2a;
+            font-size: 0.9rem;
+        }
+
+        .roll-item input[type="time"] {
+            background: #000;
+            border: 1px solid #444;
+            padding: 4px;
+            width: 75px; /* Компактная ширина для времени */
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+
+        .over-shift { color: var(--error); font-size: 0.7rem; }
+        .lunch-tag { color: #ffa726; font-size: 0.55rem; margin-left: 3px; border: 1px solid #ffa726; padding: 0 2px; border-radius: 3px; }
+        
+        .reset-btn {
+            background: transparent;
+            color: var(--error);
+            border: 1px solid var(--error);
+            padding: 10px;
+            border-radius: 8px;
+            width: 100%;
+            font-size: 0.8rem;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app-content">
+    <div class="global-card">
+        <div class="row">
+            <div class="col" style="flex: 1.5;">
+                <label>Смена</label>
+                <select id="shift" onchange="applyShift()">
+                    <option value="06:00|14:00|10:00">1-я (06 - 14)</option>
+                    <option value="14:00|22:00|18:00">2-я (14 - 22)</option>
+                    <option value="22:00|06:00|02:00">3-я (22 - 06)</option>
+                </select>
+            </div>
+            <div class="col">
+                <label>Чистка</label>
+                <input type="number" id="cleaning" value="12" oninput="saveData(); recalcAll()">
+            </div>
+        </div>
+        <div class="row">
+            <div class="col">
+                <label>Начало обеда</label>
+                <input type="time" id="lunchStart" oninput="saveData(); recalcAll()">
+            </div>
+        </div>
+    </div>
+
+    <div id="machines-container"></div>
+</div>
+
+<button class="reset-btn" onclick="clearAllData()">Сбросить всё</button>
+
+<script>
+    if ('serviceWorker' in navigator) {
+        const sw = 'data:text/javascript;base64,c2VsZi5hZGRFdmVudExpc3RlbmVyKCdmZXRjaCcsIGUgPT4geyBlLnJlc3BvbmRXaXRoKGZldGNoKGUucmVxdWVzdCkpOyB9KTs=';
+        navigator.serviceWorker.register(sw).catch(() => {});
+    }
+
+    const machineIds = [1, 2, 3];
+    let overrides = { 1: {}, 2: {}, 3: {} };
+
+    function init() {
+        const container = document.getElementById('machines-container');
+        const savedData = JSON.parse(localStorage.getItem('mApp_v5_data')) || {};
+        const cleaningVal = localStorage.getItem('mApp_v5_cleaning') || 12;
+        const lunchVal = localStorage.getItem('mApp_v5_lunchStart');
+        const shiftIdx = localStorage.getItem('mApp_v5_shiftIdx');
+        
+        document.getElementById('cleaning').value = cleaningVal;
+        if (shiftIdx !== null) document.getElementById('shift').selectedIndex = shiftIdx;
+        if (lunchVal) document.getElementById('lunchStart').value = lunchVal;
+
+        machineIds.forEach(id => {
+            const mData = savedData[id] || { name: `Машина ${id}`, revs: 5000, speed: 100, lunch: true };
+            const card = document.createElement('div');
+            card.className = 'machine-card';
+            card.innerHTML = `
+                <input type="text" class="machine-title" id="name-${id}" value="${mData.name}" oninput="saveData()">
+                <div class="row">
+                    <div class="col"><label>Старт</label><input type="time" id="start-${id}" value="06:00" oninput="resetManual(${id})"></div>
+                    <div class="col"><label>Обороты</label><input type="number" id="revs-${id}" value="${mData.revs}" oninput="saveData(); recalc(${id})"></div>
+                    <div class="col"><label>Скорость</label><input type="number" id="speed-${id}" value="${mData.speed}" oninput="saveData(); recalc(${id})"></div>
+                </div>
+                <div class="prediction-block">
+                    <div class="row" style="margin-bottom:0; align-items: center;">
+                        <div class="col"><input type="number" id="curRevs-${id}" placeholder="Тек.об."></div>
+                        <button class="predict-btn"
