@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#121212">
-    <title>Ткацкий Цех PRO v17</title>
+    <title>Ткацкий Цех PRO v18</title>
     
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -74,17 +74,16 @@
             display: flex; justify-content: space-between; align-items: center; 
             padding: 6px 0; border-bottom: 1px solid #2a2a2a; 
         }
-        .roll-item.done { opacity: 0.3; }
+        .roll-item.done { opacity: 0.35; } /* Пометка выполненных или вышедших за смену */
+        
         .roll-item input[type="time"] {
             background: #000; width: 80px; padding: 4px; color: var(--accent);
             border: 1px solid #444; border-radius: 4px; text-align: center;
             font-family: monospace; font-size: 0.95rem;
         }
         .roll-num { font-size: 0.9rem; font-weight: 500; }
-        .lunch-tag { 
-            color: orange; font-size: 0.55rem; border: 1px solid orange; 
-            padding: 0px 3px; border-radius: 3px; margin-left: 5px;
-        }
+        .lunch-tag { color: orange; font-size: 0.55rem; border: 1px solid orange; padding: 0px 3px; border-radius: 3px; margin-left: 5px; }
+        .out-tag { color: #cf6679; font-size: 0.55rem; font-weight: bold; margin-left: 5px; }
         
         .reset-all { background: #222; color: #555; border: none; padding: 6px; width: 100%; border-radius: 6px; margin-top: 15px; font-size: 0.65rem; }
     </style>
@@ -114,7 +113,7 @@
 
 <div id="machines-container"></div>
 
-<button class="reset-all" onclick="hardReset()">ПОЛНЫЙ СБРОС</button>
+<button class="reset-all" onclick="hardReset()">ПОЛНЫЙ СБРОС (v18)</button>
 
 <script>
     const machineIds = [1, 2, 3];
@@ -139,22 +138,19 @@
         const container = document.getElementById('machines-container');
         let savedData = {};
         try {
-            savedData = JSON.parse(localStorage.getItem('mApp_v17_settings')) || {};
-            overrides = JSON.parse(localStorage.getItem('mApp_v17_overrides')) || { 1: {}, 2: {}, 3: {} };
-            timerActive = JSON.parse(localStorage.getItem('mApp_v17_active')) || { 1: false, 2: false, 3: false };
-        } catch(e) {
-            console.error("Data error, resetting...");
-            localStorage.clear();
-        }
+            savedData = JSON.parse(localStorage.getItem('mApp_v18_settings')) || {};
+            overrides = JSON.parse(localStorage.getItem('mApp_v18_overrides')) || { 1: {}, 2: {}, 3: {} };
+            timerActive = JSON.parse(localStorage.getItem('mApp_v18_active')) || { 1: false, 2: false, 3: false };
+        } catch(e) { localStorage.clear(); }
 
         const hour = new Date().getHours();
         let defIdx = (hour >= 6 && hour < 14) ? 0 : (hour >= 14 && hour < 22) ? 1 : 2;
 
-        document.getElementById('shift').selectedIndex = localStorage.getItem('mApp_v17_shiftIdx') || defIdx;
-        if (!localStorage.getItem('mApp_v17_lunch')) autoSetLunch();
-        else document.getElementById('lunchTime').value = localStorage.getItem('mApp_v17_lunch');
+        document.getElementById('shift').selectedIndex = localStorage.getItem('mApp_v18_shiftIdx') || defIdx;
+        if (!localStorage.getItem('mApp_v18_lunch')) autoSetLunch();
+        else document.getElementById('lunchTime').value = localStorage.getItem('mApp_v18_lunch');
         
-        document.getElementById('cleaning').value = localStorage.getItem('mApp_v17_cleaning') || 12;
+        document.getElementById('cleaning').value = localStorage.getItem('mApp_v18_cleaning') || 12;
 
         let html = '';
         machineIds.forEach(id => {
@@ -230,11 +226,16 @@
         let finMin = (toMin(nowTimeStr) + remTime) % 1440;
         const lunchStr = document.getElementById('lunchTime').value;
         const shiftStart = document.getElementById('shift').value.split('|')[0];
+        
         if (document.getElementById(`lunch-${id}`).checked) {
             const nowRel = getRelMin(nowTimeStr, shiftStart);
             const lunchRel = getRelMin(lunchStr, shiftStart);
-            if (nowRel < lunchRel && (nowRel + remTime) > lunchRel) finMin = (finMin + 30) % 1440;
+            // ПРОВЕРКА: Если сейчас еще НЕ обед, но рулон закончится ПОСЛЕ начала обеда
+            if (nowRel < lunchRel && (nowRel + remTime) > lunchRel) {
+                finMin = (finMin + 30) % 1440;
+            }
         }
+        
         timerActive[id] = true;
         document.getElementById(`card-${id}`).classList.add('active');
         updateRoll(id, 0, toTime(finMin));
@@ -250,27 +251,45 @@
         const lunchStr = document.getElementById('lunchTime').value;
         const shiftStart = document.getElementById('shift').value.split('|')[0];
         const useLunch = document.getElementById(`lunch-${id}`).checked;
+        
         let currentMin = toMin(document.getElementById(`start-${id}`).value);
         const rollTime = Math.ceil(rev / spd);
         const nowStr = toTime(new Date().getHours() * 60 + new Date().getMinutes());
         const nowRel = getRelMin(nowStr, shiftStart);
+        
         let html = '';
         let lunchDone = false;
-        for (let i = 0; i < 8; i++) {
+        
+        for (let i = 0; i < 9; i++) {
             if (overrides[id][i]) currentMin = toMin(overrides[id][i]) - rollTime;
+            
             let hasLunch = false;
             let currentRel = getRelMin(toTime(currentMin), shiftStart);
             let lunchRel = getRelMin(lunchStr, shiftStart);
+            
             if (useLunch && !lunchDone && currentRel < lunchRel && (currentRel + rollTime) > lunchRel) {
-                currentMin += 30; lunchDone = true; hasLunch = true;
+                currentMin += 30;
+                lunchDone = true;
+                hasLunch = true;
             }
+            
             let finish = currentMin + rollTime;
             let finRel = getRelMin(toTime(finish), shiftStart);
-            html += `<div class="roll-item ${nowRel > finRel ? 'done' : ''}">
-                <span class="roll-num">№${i+1}${hasLunch ? '<span class="lunch-tag">ОБЕД</span>' : ''}</span>
+            
+            // ЛОГИКА ПОМЕТКИ "ЗА СМЕНОЙ"
+            // Прошедшие рулоны (nowRel > finRel) ИЛИ рулоны длиннее 8 часов (finRel > 480)
+            const isPast = nowRel > finRel;
+            const isOut = finRel > 480; 
+
+            html += `<div class="roll-item ${isPast || isOut ? 'done' : ''}">
+                <span class="roll-num">
+                    №${i+1}${hasLunch ? '<span class="lunch-tag">ОБЕД</span>' : ''}
+                    ${isOut && !isPast ? '<span class="out-tag">ВНЕ СМЕНЫ</span>' : ''}
+                </span>
                 <input type="time" value="${toTime(finish)}" onchange="updateRoll(${id}, ${i}, this.value)">
             </div>`;
-            if (finRel > 490) break;
+            
+            if (finRel > 540) break; // Показываем чуть больше 8 часов для наглядности
             currentMin = finish + cln;
         }
         list.innerHTML = html;
@@ -286,20 +305,15 @@
         try {
             const data = {};
             machineIds.forEach(id => {
-                const n = document.getElementById(`name-${id}`);
-                const r = document.getElementById(`revs-${id}`);
-                const s = document.getElementById(`speed-${id}`);
-                const st = document.getElementById(`start-${id}`);
-                if(n && r && s && st) {
-                    data[id] = { name: n.value, revs: r.value, speed: s.value, start: st.value };
-                }
+                const n = document.getElementById(`name-${id}`), r = document.getElementById(`revs-${id}`), s = document.getElementById(`speed-${id}`), st = document.getElementById(`start-${id}`);
+                if(n && r && s && st) data[id] = { name: n.value, revs: r.value, speed: s.value, start: st.value };
             });
-            localStorage.setItem('mApp_v17_settings', JSON.stringify(data));
-            localStorage.setItem('mApp_v17_cleaning', document.getElementById('cleaning').value);
-            localStorage.setItem('mApp_v17_shiftIdx', document.getElementById('shift').selectedIndex);
-            localStorage.setItem('mApp_v17_lunch', document.getElementById('lunchTime').value);
-            localStorage.setItem('mApp_v17_overrides', JSON.stringify(overrides));
-            localStorage.setItem('mApp_v17_active', JSON.stringify(timerActive));
+            localStorage.setItem('mApp_v18_settings', JSON.stringify(data));
+            localStorage.setItem('mApp_v18_cleaning', document.getElementById('cleaning').value);
+            localStorage.setItem('mApp_v18_shiftIdx', document.getElementById('shift').selectedIndex);
+            localStorage.setItem('mApp_v18_lunch', document.getElementById('lunchTime').value);
+            localStorage.setItem('mApp_v18_overrides', JSON.stringify(overrides));
+            localStorage.setItem('mApp_v18_active', JSON.stringify(timerActive));
         } catch(e) {}
     }
 
