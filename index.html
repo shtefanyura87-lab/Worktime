@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#121212">
+    <title>Ткацкий Цех PRO v21</title>
+    
+    <style>
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        :root {
+            --bg: #121212; --card: #1e1e1e; --accent: #03dac6; --text: #e0e0e0;
+            --error: #cf6679; --warning: #ffa726; --input-bg: #2c2c2c; --border: #333;
+        }
+        body {
+            font-family: -apple-system, system-ui, sans-serif;
+            background-color: var(--bg); color: var(--text);
+            margin: 0; padding: 8px; padding-bottom: 30px;
+        }
+        .global-card {
+            background: var(--card); padding: 12px; border-radius: 12px;
+            margin-bottom: 12px; border: 1px solid var(--border);
+        }
+        .row { display: flex; gap: 6px; margin-bottom: 8px; align-items: flex-end; }
+        .col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+        label { font-size: 0.6rem; color: #888; margin-bottom: 3px; text-transform: uppercase; font-weight: bold; }
+        
+        select, input {
+            background: var(--input-bg); border: 1px solid var(--border);
+            color: #fff; padding: 10px; border-radius: 6px; font-size: 0.95rem;
+            outline: none; width: 100%;
+        }
+
+        .lunch-toggle {
+            display: flex; align-items: center; justify-content: space-between;
+            background: #252525; padding: 6px 10px; border-radius: 8px;
+            cursor: pointer; border: 1px solid var(--border); margin-top: 4px;
+        }
+        .switch-input { display: none; }
+        .switch-box {
+            width: 34px; height: 16px; background: #444;
+            border-radius: 20px; position: relative; transition: 0.3s;
+        }
+        .switch-box::after {
+            content: ''; position: absolute; width: 12px; height: 12px;
+            background: #fff; border-radius: 50%; top: 2px; left: 2px; transition: 0.3s;
+        }
+        .switch-input:checked + .switch-box { background: var(--accent); }
+        .switch-input:checked + .switch-box::after { left: 20px; }
+
+        .machine-card {
+            background: var(--card); border-radius: 12px; padding: 12px;
+            border-left: 4px solid #444; margin-bottom: 12px; border: 1px solid var(--border);
+        }
+        .machine-card.active { border-left-color: var(--accent); }
+
+        .machine-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .machine-title {
+            background: transparent; font-size: 1.1rem; font-weight: bold;
+            color: var(--accent); border: none; border-bottom: 1px dashed #444; width: 55%;
+        }
+        .countdown-timer { font-family: monospace; font-size: 1.1rem; font-weight: bold; color: #555; }
+        .active .countdown-timer { color: var(--accent); }
+        
+        .prediction-block {
+            background: #1a2a2a; padding: 10px; border-radius: 8px; margin: 8px 0; border: 1px solid #2d4a4a;
+        }
+        .predict-btn {
+            background: var(--accent); color: #000; border: none;
+            padding: 8px; border-radius: 6px; font-weight: bold; font-size: 0.8rem;
+        }
+
+        .roll-item { 
+            display: flex; justify-content: space-between; align-items: center; 
+            padding: 6px 0; border-bottom: 1px solid #2a2a2a; 
+        }
+        .roll-item.done { opacity: 0.35; } 
+        
+        .roll-item input[type="time"] {
+            background: #000; width: 95px; /* Увеличено до 95 для гарантии */
+            padding: 4px; color: var(--accent); border: 1px solid #444; 
+            border-radius: 4px; text-align: center; font-family: monospace; font-size: 0.95rem;
+        }
+        
+        .roll-num { font-size: 0.9rem; font-weight: 500; }
+        .lunch-tag { color: orange; font-size: 0.55rem; border: 1px solid orange; padding: 0px 3px; border-radius: 3px; margin-left: 5px; }
+        .out-tag { color: #cf6679; font-size: 0.55rem; font-weight: bold; margin-left: 5px; }
+        
+        .reset-all { background: #222; color: #555; border: none; padding: 6px; width: 100%; border-radius: 6px; margin-top: 15px; font-size: 0.65rem; }
+    </style>
+</head>
+<body>
+
+<div class="global-card">
+    <div class="row">
+        <div class="col" style="flex: 1.5;">
+            <label>Смена</label>
+            <select id="shift" onchange="autoSetLunch(); applyShift();">
+                <option value="06:00|14:00|10:00">1-я (06 - 14)</option>
+                <option value="14:00|22:00|18:00">2-я (14 - 22)</option>
+                <option value="22:00|06:00|02:00">3-я (22 - 06)</option>
+            </select>
+        </div>
+        <div class="col">
+            <label>Обед в:</label>
+            <input type="time" id="lunchTime" oninput="saveSettings(); recalcAll()">
+        </div>
+        <div class="col" style="flex: 0.6;">
+            <label>Чистка</label>
+            <input type="number" id="cleaning" value="12" oninput="saveSettings(); recalcAll()">
+        </div>
+    </div>
+</div>
+
+<div id="machines-container"></div>
+
+<button class="reset-all" onclick="hardReset()">ПОЛНЫЙ СБРОС (v21)</button>
+
+<script>
+    const machineIds = [1, 2, 3];
+    let overrides = { 1: {}, 2: {}, 3: {} };
+    let timerActive = { 1: false, 2: false, 3: false };
+
+    function toMin(s) { if(!s) return 0; const [h, m] = s.split(':').map(Number); return h * 60 + m; }
+    function toTime(m) { m = (m + 1440) % 1440; return `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`; }
+
+    function getRelMin(timeStr, shiftStartStr) {
+        let t = toMin(timeStr);
+        let s = toMin(shiftStartStr);
+        return (t >= s) ? (t - s) : (1440 - s + t);
+    }
+
+    function autoSetLunch() {
+        const el = document.getElementById('shift');
+        if (!el) return;
+        const val = el.value.split('|')[2];
+        document.getElementById('lunchTime').value = val;
+    }
+
+    function init() {
+        try {
+            const container = document.getElementById('machines-container');
+            const hour = new Date().getHours();
+            let defIdx = (hour >= 6 && hour < 14) ? 0 : (hour >= 14 && hour < 22) ? 1 : 2;
+            
+            // 1. Сначала ставим смену по времени
+            document.getElementById('shift').selectedIndex = defIdx;
+            autoSetLunch();
+
+            // 2. Загружаем данные из памяти (если есть)
+            let savedData = JSON.parse(localStorage.getItem('mApp_v21_settings')) || {};
+            overrides = JSON.parse(localStorage.getItem('mApp_v21_overrides')) || { 1: {}, 2: {}, 3: {} };
+            timerActive = JSON.parse(localStorage.getItem('mApp_v21_active')) || { 1: false, 2: false, 3: false };
+            const savedCleaning = localStorage.getItem('mApp_v21_cleaning');
+            if (savedCleaning) document.getElementById('cleaning').value = savedCleaning;
+
+            // 3. Рисуем карточки
+            let html = '';
+            machineIds.forEach(id => {
+                const startVal = document.getElementById('shift').value.split('|')[0];
+                const m = savedData[id] || { name: `Машина ${id}`, revs: 5000, speed: 100, start: startVal };
+                html += `
+                    <div class="machine-card ${timerActive[id] ? 'active' : ''}" id="card-${id}">
+                        <div class="machine-header">
+                            <input type="text" class="machine-title" id="name-${id}" value="${m.name}" oninput="saveSettings()">
+                            <div class="countdown-timer" id="timer-${id}">--:--:--</div>
+                        </div>
+                        <div class="row">
+                            <div class="col"><label>Старт</label><input type="time" id="start-${id}" value="${m.start}" oninput="saveSettings(); resetManual(${id})"></div>
+                            <div class="col"><label>Об.</label><input type="number" id="revs-${id}" value="${m.revs}" oninput="saveSettings(); recalc(${id})"></div>
+                            <div class="col"><label>Ск.</label><input type="number" id="speed-${id}" value="${m.speed}" oninput="saveSettings(); recalc(${id})"></div>
+                        </div>
+                        <div class="prediction-block">
+                            <div class="row" style="margin:0; align-items:center; gap:8px;">
+                                <div class="col" style="flex:1.2;"><input type="number" id="curRevs-${id}" placeholder="Тек. об."></div>
+                                <button class="predict-btn" onclick="predict(${id})" style="flex:1;">ПРОГНОЗ</button>
+                            </div>
+                        </div>
+                        <div class="row" style="margin:0; align-items:center;">
+                            <div class="col">
+                                <label class="lunch-toggle">
+                                    <span style="font-size:0.75rem; color:#aaa;">Обед</span>
+                                    <input type="checkbox" class="switch-input" id="lunch-${id}" checked onchange="saveSettings(); recalc(${id})">
+                                    <div class="switch-box"></div>
+                                </label>
+                            </div>
+                            <div class="col" style="flex:0.4; text-align:right;">
+                                <span onclick="clearMachineOverrides(${id})" style="font-size:0.65rem; color:#555; text-decoration:underline; cursor:pointer;">Сброс</span>
+                            </div>
+                        </div>
+                        <div id="list-${id}" style="margin-top:8px;"></div>
+                    </div>`;
+            });
+            container.innerHTML = html;
+            recalcAll();
+            setInterval(tick, 1000);
+        } catch (e) {
+            console.error("Критическая ошибка запуска, пробуем сброс...");
+            localStorage.clear();
+        }
+    }
+
+    function tick() {
+        const now = new Date();
+        const nowSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+        machineIds.forEach(id => {
+            const timerEl = document.getElementById(`timer-${id}`);
+            if (!timerEl || !timerActive[id]) return;
+            const list = document.getElementById(`list-${id}`);
+            const firstTimeInput = list.querySelector('input[type="time"]');
+            if (!firstTimeInput) return;
+            let fSec = toMin(firstTimeInput.value) * 60;
+            if (Math.abs(fSec - nowSec) > 43200) { if (fSec < nowSec) fSec += 86400; }
+            const diff = fSec - nowSec;
+            if (diff > 0) {
+                const h = Math.floor(diff / 3600);
+                const m = Math.floor((diff % 3600) / 60);
+                const s = diff % 60;
+                timerEl.innerText = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+            } else { timerEl.innerText = "ГОТОВО"; }
+        });
+        if (now.getSeconds() === 0) recalcAll();
+    }
+
+    function predict(id) {
+        const curInput = document.getElementById(`curRevs-${id}`);
+        const cur = +curInput.value;
+        const tot = +document.getElementById(`revs-${id}`).value;
+        const spd = +document.getElementById(`speed-${id}`).value;
+        if (spd <= 0 || cur >= tot) return;
+        const now = new Date();
+        const nowTimeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+        const remTime = Math.ceil((tot - cur) / spd);
+        let finMin = (toMin(nowTimeStr) + remTime) % 1440;
+        const lunchStr = document.getElementById('lunchTime').value;
+        const shiftStart = document.getElementById('shift').value.split('|')[0];
+        
+        if (document.getElementById(`lunch-${id}`).checked) {
+            const nowRel = getRelMin(nowTimeStr, shiftStart);
+            const lunchRel = getRelMin(lunchStr, shiftStart);
+            if (nowRel < lunchRel && (nowRel + remTime) > lunchRel) finMin = (finMin + 30) % 1440;
+        }
+        
+        timerActive[id] = true;
+        document.getElementById(`card-${id}`).classList.add('active');
+        updateRoll(id, 0, toTime(finMin));
+        curInput.value = '';
+    }
+
+    function recalc(id) {
+        const list = document.getElementById(`list-${id}`);
+        if (!list) return;
+        const spd = +document.getElementById(`speed-${id}`).value || 100;
+        const rev = +document.getElementById(`revs-${id}`).value || 5000;
+        const cln = +document.getElementById('cleaning').value || 12;
+        const lunchStr = document.getElementById('lunchTime').value;
+        const shiftStart = document.getElementById('shift').value.split('|')[0];
+        const useLunch = document.getElementById(`lunch-${id}`).checked;
+        
+        let currentMin = toMin(document.getElementById(`start-${id}`).value);
+        const rollTime =
