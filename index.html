@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#121212">
-    <title>Ткацкий Цех PRO v19</title>
+    <title>Ткацкий Цех PRO v20</title>
     
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -76,15 +76,10 @@
         }
         .roll-item.done { opacity: 0.35; } 
         
-        /* --- ИСПРАВЛЕНО ОТОБРАЖЕНИЕ ВРЕМЕНИ --- */
         .roll-item input[type="time"] {
-            background: #000; 
-            width: 90px; /* Увеличена ширина, чтобы кнопка не закрывала цифры */
-            padding: 4px;
-            padding-right: 2px; /* Уменьшен отступ справа */
-            color: var(--accent);
-            border: 1px solid #444; border-radius: 4px; text-align: center;
-            font-family: monospace; font-size: 0.95rem;
+            background: #000; width: 90px; padding: 4px;
+            color: var(--accent); border: 1px solid #444; border-radius: 4px; 
+            text-align: center; font-family: monospace; font-size: 0.95rem;
         }
         
         .roll-num { font-size: 0.9rem; font-weight: 500; }
@@ -119,7 +114,7 @@
 
 <div id="machines-container"></div>
 
-<button class="reset-all" onclick="hardReset()">ПОЛНЫЙ СБРОС (v19)</button>
+<button class="reset-all" onclick="hardReset()">ПОЛНЫЙ СБРОС (v20)</button>
 
 <script>
     const machineIds = [1, 2, 3];
@@ -144,23 +139,31 @@
         const container = document.getElementById('machines-container');
         let savedData = {};
         try {
-            savedData = JSON.parse(localStorage.getItem('mApp_v19_settings')) || {};
-            overrides = JSON.parse(localStorage.getItem('mApp_v19_overrides')) || { 1: {}, 2: {}, 3: {} };
-            timerActive = JSON.parse(localStorage.getItem('mApp_v19_active')) || { 1: false, 2: false, 3: false };
+            savedData = JSON.parse(localStorage.getItem('mApp_v20_settings')) || {};
+            overrides = JSON.parse(localStorage.getItem('mApp_v20_overrides')) || { 1: {}, 2: {}, 3: {} };
+            timerActive = JSON.parse(localStorage.getItem('mApp_v20_active')) || { 1: false, 2: false, 3: false };
         } catch(e) { localStorage.clear(); }
 
+        // --- ИСПРАВЛЕННЫЙ АВТО-ВЫБОР СМЕНЫ ---
         const hour = new Date().getHours();
         let defIdx = (hour >= 6 && hour < 14) ? 0 : (hour >= 14 && hour < 22) ? 1 : 2;
-
-        document.getElementById('shift').selectedIndex = localStorage.getItem('mApp_v19_shiftIdx') || defIdx;
-        if (!localStorage.getItem('mApp_v19_lunch')) autoSetLunch();
-        else document.getElementById('lunchTime').value = localStorage.getItem('mApp_v19_lunch');
         
-        document.getElementById('cleaning').value = localStorage.getItem('mApp_v19_cleaning') || 12;
+        // Всегда ставим актуальную смену при загрузке
+        document.getElementById('shift').selectedIndex = defIdx;
+        autoSetLunch();
+        
+        document.getElementById('cleaning').value = localStorage.getItem('mApp_v20_cleaning') || 12;
 
         let html = '';
         machineIds.forEach(id => {
-            const m = savedData[id] || { name: `Машина ${id}`, revs: 5000, speed: 100, start: document.getElementById('shift').value.split('|')[0] };
+            const currentShiftStart = document.getElementById('shift').value.split('|')[0];
+            const m = savedData[id] || { 
+                name: `Машина ${id}`, 
+                revs: 5000, 
+                speed: 100, 
+                start: currentShiftStart 
+            };
+            
             html += `
                 <div class="machine-card ${timerActive[id] ? 'active' : ''}" id="card-${id}">
                     <div class="machine-header">
@@ -265,23 +268,18 @@
         let html = '';
         let lunchDone = false;
         
-        // --- ПРЕДЕЛ ЦИКЛА УВЕЛИЧЕН, ОСТАНОВКА ЧЕРЕЗ BREAK ---
         for (let i = 0; i < 15; i++) {
             if (overrides[id][i]) currentMin = toMin(overrides[id][i]) - rollTime;
-            
             let hasLunch = false;
             let currentRel = getRelMin(toTime(currentMin), shiftStart);
             let lunchRel = getRelMin(lunchStr, shiftStart);
             
             if (useLunch && !lunchDone && currentRel < lunchRel && (currentRel + rollTime) > lunchRel) {
-                currentMin += 30;
-                lunchDone = true;
-                hasLunch = true;
+                currentMin += 30; lunchDone = true; hasLunch = true;
             }
             
             let finish = currentMin + rollTime;
             let finRel = getRelMin(toTime(finish), shiftStart);
-            
             const isPast = nowRel > finRel;
             const isOut = finRel > 480; 
 
@@ -293,9 +291,7 @@
                 <input type="time" value="${toTime(finish)}" onchange="updateRoll(${id}, ${i}, this.value)">
             </div>`;
             
-            // --- ИСПРАВЛЕНА ОСТАНОВКА: Если рулон вышел за смену, он последний в списке ---
             if (isOut) break;
-            
             currentMin = finish + cln;
         }
         list.innerHTML = html;
@@ -314,32 +310,15 @@
                 const n = document.getElementById(`name-${id}`), r = document.getElementById(`revs-${id}`), s = document.getElementById(`speed-${id}`), st = document.getElementById(`start-${id}`);
                 if(n && r && s && st) data[id] = { name: n.value, revs: r.value, speed: s.value, start: st.value };
             });
-            localStorage.setItem('mApp_v19_settings', JSON.stringify(data));
-            localStorage.setItem('mApp_v19_cleaning', document.getElementById('cleaning').value);
-            localStorage.setItem('mApp_v19_shiftIdx', document.getElementById('shift').selectedIndex);
-            localStorage.setItem('mApp_v19_lunch', document.getElementById('lunchTime').value);
-            localStorage.setItem('mApp_v19_overrides', JSON.stringify(overrides));
-            localStorage.setItem('mApp_v19_active', JSON.stringify(timerActive));
+            localStorage.setItem('mApp_v20_settings', JSON.stringify(data));
+            localStorage.setItem('mApp_v20_cleaning', document.getElementById('cleaning').value);
+            localStorage.setItem('mApp_v20_shiftIdx', document.getElementById('shift').selectedIndex);
+            localStorage.setItem('mApp_v20_lunch', document.getElementById('lunchTime').value);
+            localStorage.setItem('mApp_v20_overrides', JSON.stringify(overrides));
+            localStorage.setItem('mApp_v20_active', JSON.stringify(timerActive));
         } catch(e) {}
     }
 
     function clearMachineOverrides(id) { overrides[id] = {}; timerActive[id] = false; document.getElementById(`card-${id}`).classList.remove('active'); saveSettings(); recalc(id); }
     function resetManual(id) { overrides[id] = {}; recalc(id); }
     function recalcAll() { machineIds.forEach(id => recalc(id)); }
-    function applyShift() {
-        const start = document.getElementById('shift').value.split('|')[0];
-        machineIds.forEach(id => { 
-            const el = document.getElementById(`start-${id}`);
-            if(el) el.value = start; 
-            overrides[id] = {}; timerActive[id] = false; 
-            const card = document.getElementById(`card-${id}`);
-            if(card) card.classList.remove('active'); 
-            recalc(id); 
-        });
-        saveSettings();
-    }
-    function hardReset() { if(confirm("Сбросить всё?")) { localStorage.clear(); location.reload(); } }
-    window.onload = init;
-</script>
-</body>
-</html>
