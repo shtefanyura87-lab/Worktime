@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<meta name="theme-color" content="#1E1E1E"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<title>Time Calculator</title>
+<link rel="manifest" href="manifest.json"/>
+<link rel="icon" href="icon.svg"/>
+<style>
+:root {
+  --bg:       #121212;
+  --bgCard:   #1E1E1E;
+  --bgInput:  #2C2C2C;
+  --bgPredict:#1A2A2A;
+  --border:   #333;
+  --borderA:  #03DAC6;
+  --accent:   #03DAC6;
+  --timerOff: #555;
+  --timerWarn:#FFA726;
+  --txt:      #E0E0E0;
+  --txtSec:   #AAAAAA;
+  --txtHint:  #555;
+  --tagLunch: #FFA726;
+  --tagOut:   #CF6679;
+  --divider:  #2A2A2A;
+  --radius:   8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:'Courier New',Courier,monospace;font-size:15px;overscroll-behavior:none;}
+
+/* ── Layout ── */
+#app{display:flex;flex-direction:column;height:100dvh;}
+#header{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--bgCard);border-bottom:1px solid var(--divider);flex-shrink:0;}
+#appTitle{font-size:13px;font-weight:bold;color:var(--accent);letter-spacing:.08em;white-space:nowrap;}
+#shiftSelect{flex:1;background:var(--bgInput);color:var(--txt);border:none;border-radius:var(--radius);padding:6px 8px;font-family:inherit;font-size:13px;height:36px;}
+#lunchBtn{background:var(--bgInput);color:var(--accent);border:none;border-radius:var(--radius);padding:0 10px;font-family:inherit;font-size:13px;height:36px;cursor:pointer;white-space:nowrap;}
+#settingsBtn{background:none;border:none;color:#888;font-size:20px;cursor:pointer;padding:4px 6px;line-height:1;}
+#scroll{flex:1;overflow-y:auto;padding:8px;-webkit-overflow-scrolling:touch;}
+#machinesContainer{display:flex;flex-direction:column;gap:6px;}
+#resetBtn{text-align:center;color:var(--txtHint);font-size:10px;padding:14px;cursor:pointer;letter-spacing:.05em;}
+
+/* ── Cards ── */
+.card{background:var(--bgCard);border-radius:var(--radius);border:1px solid var(--border);padding:10px 12px;transition:border-color .2s;}
+.card.active{border-color:var(--borderA);}
+
+/* Row A */
+.rowA{display:flex;align-items:center;gap:4px;height:54px;}
+.machineName{flex:1.6;height:100%;background:var(--bgInput);border:none;border-radius:var(--radius);color:var(--accent);font-family:inherit;font-size:17px;font-weight:bold;padding:0 8px;min-width:0;}
+.machineName:focus{outline:1px solid var(--accent);}
+.pickBtn{width:36px;height:100%;background:var(--bgInput);border:none;border-radius:var(--radius);color:var(--txtSec);font-size:15px;cursor:pointer;flex-shrink:0;}
+.revsInput{flex:1;height:100%;background:var(--bgInput);border:none;border-radius:var(--radius);color:var(--txt);font-family:inherit;font-size:15px;text-align:center;padding:0 6px;min-width:0;}
+.revsInput::placeholder{color:var(--txtHint);font-size:12px;}
+.revsInput:focus{outline:1px solid var(--accent);}
+.predictBtn{width:54px;height:54px;background:var(--accent);border:none;border-radius:var(--radius);color:#121212;font-family:inherit;font-size:11px;font-weight:bold;cursor:pointer;flex-shrink:0;line-height:1.2;}
+.expandBtn{width:32px;height:100%;background:none;border:none;color:var(--txtSec);font-size:20px;cursor:pointer;flex-shrink:0;}
+
+/* Row B */
+.rowB{display:flex;align-items:center;height:38px;margin-top:5px;}
+.timerDisplay{font-size:21px;font-weight:bold;color:var(--timerOff);font-family:inherit;white-space:nowrap;}
+.timerDisplay.running{color:var(--accent);}
+.timerDisplay.warn{color:var(--timerWarn);}
+.timerDisplay.paused{color:var(--txtSec);}
+.curRevs{font-size:12px;color:var(--txtHint);margin-left:10px;}
+.spacer{flex:1;}
+.untilLabel{font-size:12px;color:var(--txtSec);margin-right:6px;}
+.endTime{font-size:18px;font-weight:bold;color:var(--txt);}
+
+/* Expanded panel */
+.expandedPanel{display:none;margin-top:0;}
+.expandedPanel.open{display:block;}
+.panelDivider{border:none;border-top:1px solid var(--divider);margin:10px 0;}
+
+.rowStartSettings{display:flex;gap:8px;margin-bottom:10px;}
+.col{flex:1;display:flex;flex-direction:column;gap:4px;}
+.fieldLabel{font-size:9px;color:var(--txtSec);letter-spacing:.05em;}
+.fieldBtn{height:48px;background:var(--bgInput);border:none;border-radius:var(--radius);color:var(--txt);font-family:inherit;font-size:16px;cursor:pointer;}
+.fieldBtn.small{font-size:12px;color:var(--txtSec);}
+
+.paramsPanel{display:none;flex-direction:row;gap:6px;margin-bottom:10px;}
+.paramsPanel.open{display:flex;}
+.paramField{height:48px;width:100%;background:var(--bgInput);border:none;border-radius:var(--radius);color:var(--txt);font-family:inherit;font-size:16px;text-align:center;padding:0 6px;}
+.paramField:focus{outline:1px solid var(--accent);}
+
+.rowLunch{display:flex;align-items:center;height:48px;gap:8px;margin-bottom:10px;}
+.lunchToggle{display:flex;align-items:center;gap:10px;flex:1;cursor:pointer;font-size:15px;color:var(--txtSec);}
+.lunchToggle input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent);cursor:pointer;}
+.clearBtn{color:var(--txtHint);font-size:14px;cursor:pointer;padding:8px;background:none;border:none;font-family:inherit;}
+
+/* Roll list */
+.rollDivider{border:none;border-top:1px solid var(--divider);margin-bottom:6px;}
+.rollList{display:flex;flex-direction:column;gap:2px;}
+.rollRow{display:flex;align-items:center;padding:6px 0;opacity:1;transition:opacity .2s;}
+.rollRow.past,.rollRow.out{opacity:.35;}
+.rollNum{font-size:16px;font-weight:bold;color:var(--txt);width:44px;flex-shrink:0;}
+.rollTags{flex:1;display:flex;gap:4px;align-items:center;}
+.rollTag{font-size:10px;padding:3px 8px;border-radius:4px;}
+.rollTag.lunch{color:var(--tagLunch);border:1px solid var(--tagLunch);}
+.rollTag.out{color:var(--tagOut);border:1px solid var(--tagOut);}
+.rollTimeBtn{height:38px;width:88px;background:var(--bgInput);border:none;border-radius:var(--radius);color:var(--accent);font-family:inherit;font-size:16px;font-weight:bold;cursor:pointer;flex-shrink:0;}
+
+/* ── Dialogs / Overlays ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
+.overlay.open{opacity:1;pointer-events:all;}
+.sheet{background:var(--bgCard);border-radius:16px 16px 0 0;width:100%;max-height:85vh;overflow-y:auto;padding:20px 20px 40px;transform:translateY(30px);transition:transform .2s;}
+.overlay.open .sheet{transform:translateY(0);}
+.sheetTitle{font-size:16px;font-weight:bold;color:var(--accent);margin-bottom:16px;letter-spacing:.05em;}
+.sheetSection{font-size:10px;color:var(--txtSec);letter-spacing:.08em;margin:16px 0 8px;}
+.sheetRow{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.sheetBtn{flex:1;height:44px;background:var(--bgInput);border:none;border-radius:var(--radius);color:var(--txt);font-family:inherit;font-size:14px;cursor:pointer;}
+.sheetBtnAccent{background:var(--accent);color:#121212;font-weight:bold;}
+.sheetSelect{width:100%;height:44px;background:var(--bgInput);border:none;border-radius:var(--radius);color:var(--txt);font-family:inherit;font-size:14px;padding:0 10px;}
+.sheetClose{position:absolute;top:16px;right:20px;background:none;border:none;color:var(--txtHint);font-size:22px;cursor:pointer;}
+
+/* Notif radio */
+.radioGroup{display:flex;flex-direction:column;gap:6px;}
+.radioLabel{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:var(--txt);}
+.radioLabel input{accent-color:var(--accent);width:18px;height:18px;}
+
+/* Count stepper */
+.stepper{display:flex;align-items:center;gap:0;}
+.stepBtn{width:48px;height:44px;background:var(--bgInput);border:none;border-radius:var(--radius);color:var(--txt);font-size:22px;cursor:pointer;}
+.stepVal{flex:1;text-align:center;font-size:24px;font-weight:bold;}
+
+/* Toggle switch */
+.switchRow{display:flex;align-items:center;gap:12px;height:44px;}
+.switchLabel{flex:1;font-size:14px;color:var(--txt);}
+.switchHint{font-size:11px;color:var(--txtHint);}
+.toggle{position:relative;width:48px;height:26px;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;}
+.toggleSlider{position:absolute;inset:0;background:var(--bgInput);border-radius:13px;cursor:pointer;transition:.2s;}
+.toggle input:checked + .toggleSlider{background:var(--accent);}
+.toggleSlider::before{content:'';position:absolute;width:20px;height:20px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s;}
+.toggle input:checked + .toggleSlider::before{transform:translateX(22px);}
+
+/* Machine picker */
+.machineList{display:flex;flex-direction:column;gap:4px;max-height:40vh;overflow-y:auto;}
+.machineItem{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--bgInput);border-radius:var(--radius);cursor:pointer;}
+.machineItem:hover{background:#383838;}
+.machineItemName{flex:1;font-weight:bold;font-size:15px;}
+.machineItemSub{font-size:11px;color:var(--txtHint);}
+.machineItemDel{background:none;border:none;color:var(--txtHint);font-size:18px;cursor:pointer;padding:0 4px;}
+
+/* Time picker */
+.timePicker{display:flex;align-items:center;justify-content:center;gap:8px;margin:16px 0;}
+.timePicker input[type=time]{background:var(--bgInput);border:none;border-radius:var(--radius);color:var(--txt);font-family:inherit;font-size:24px;padding:10px 16px;width:160px;text-align:center;}
+
+/* Toast */
+#toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#333;color:var(--txt);padding:10px 20px;border-radius:20px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:200;white-space:nowrap;}
+#toast.show{opacity:1;}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+@media(min-width:600px){
+  #scroll{max-width:600px;margin:0 auto;}
+  #header{max-width:600px;margin:0 auto;width:100%;}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <span id="appTitle">TIME CALC</span>
+    <select id="shiftSelect">
+      <option value="0">1-я смена (06–14)</option>
+      <option value="1">2-я смена (14–22)</option>
+      <option value="2">3-я смена (22–06)</option>
+    </select>
+    <button id="lunchBtn">10:00</button>
+    <button id="settingsBtn">⚙</button>
+  </div>
+  <div id="scroll">
+    <div id="machinesContainer"></div>
+    <div id="resetBtn">[ ПОЛНЫЙ СБРОС ]</div>
+  </div>
+</div>
+
+<!-- Overlays -->
+<div class="overlay" id="settingsOverlay">
+  <div class="sheet" style="position:relative">
+    <button class="sheetClose" onclick="closeOverlay('settingsOverlay')">✕</button>
+    <div class="sheetTitle">НАСТРОЙКИ</div>
+
+    <div class="sheetSection">УВЕДОМЛЕНИЯ О РУЛОНАХ</div>
+    <div class="radioGroup" id="notifRadios"></div>
+
+    <div class="sheetSection">КОЛИЧЕСТВО МАШИН</div>
+    <div class="stepper">
+      <button class="stepBtn" id="cntMinus">−</button>
+      <div class="stepVal" id="cntVal">3</div>
+      <button class="stepBtn" id="cntPlus">+</button>
+    </div>
+
+    <div class="sheetSection">ЯЗЫК</div>
+    <select class="sheetSelect" id="langSelect">
+      <option value="ru">Русский</option>
+      <option value="pl">Polski</option>
+    </select>
+
+    <div class="sheetSection">ЭКСПОРТ / ИМПОРТ МАШИН</div>
+    <div class="sheetRow">
+      <button class="sheetBtn" onclick="exportLibrary()">↑ Экспорт</button>
+      <button class="sheetBtn" onclick="document.getElementById('importFile').click()">↓ Импорт</button>
+    </div>
+    <input type="file" id="importFile" accept=".json,application/json" style="display:none"/>
+
+    <div style="height:16px"></div>
+    <button class="sheetBtn sheetBtnAccent" onclick="saveSettings()" style="width:100%;height:48px;">Сохранить</button>
+  </div>
+</div>
+
+<div class="overlay" id="lunchOverlay">
+  <div class="sheet" style="position:relative">
+    <button class="sheetClose" onclick="closeOverlay('lunchOverlay')">✕</button>
+    <div class="sheetTitle">ВРЕМЯ ОБЕДА</div>
+    <div class="timePicker"><input type="time" id="lunchTimePicker"/></div>
+    <button class="sheetBtn sheetBtnAccent" onclick="saveLunch()" style="width:100%;height:48px;">Сохранить</button>
+  </div>
+</div>
+
+<div class="overlay" id="rollTimeOverlay">
+  <div class="sheet" style="position:relative">
+    <button class="sheetClose" onclick="closeOverlay('rollTimeOverlay')">✕</button>
+    <div class="sheetTitle">ВРЕМЯ РУЛОНА</div>
+    <div class="timePicker"><input type="time" id="rollTimePicker"/></div>
+    <button class="sheetBtn sheetBtnAccent" onclick="saveRollTime()" style="width:100%;height:48px;">Сохранить</button>
+  </div>
+</div>
+
+<div class="overlay" id="pickerOverlay">
+  <div class="sheet" style="position:relative">
+    <button class="sheetClose" onclick="closeOverlay('pickerOverlay')">✕</button>
+    <div class="sheetTitle">ВЫБОР МАШИНЫ</div>
+    <div class="machineList" id="pickerList"></div>
+    <div style="margin-top:12px;">
+      <button class="sheetBtn" onclick="saveToLibrary()" style="width:100%;height:44px;">＋ Сохранить шаблон</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// CORE LOGIC — ported from Kotlin
+// ═══════════════════════════════════════════════════════════════
+
+const SHIFTS = [
+  { index:0, startMin:360,  endMin:840,  lunchMin:600  },  // 06–14
+  { index:1, startMin:840,  endMin:1320, lunchMin:1080 },  // 14–22
+  { index:2, startMin:1320, endMin:360,  lunchMin:120  }   // 22–06
+];
+
+function nowMinutes() {
+  const d = new Date();
+  return d.getHours() * 60 + d.getMinutes();
+}
+function nowTotalSeconds() {
+  const d = new Date();
+  return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
+}
+function relMin(absMin, shiftStart) {
+  return absMin >= shiftStart ? absMin - shiftStart : 1440 - shiftStart + absMin;
+}
+function formatTime(absMin) {
+  const m = ((absMin % 1440) + 1440) % 1440;
+  return String(Math.floor(m / 60)).padStart(2,'0') + ':' + String(m % 60).padStart(2,'0');
+}
+function formatCountdown(totalSec) {
+  if (totalSec <= 0) return 'ГОТОВО';
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+function detectShift() {
+  const n = nowMinutes();
+  if (n >= 360 && n < 840)  return SHIFTS[0];
+  if (n >= 840 && n < 1320) return SHIFTS[1];
+  return SHIFTS[2];
+}
+function minToTime(min) {
+  // For <input type="time"> value
+  const m = ((min % 1440) + 1440) % 1440;
+  return String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
+}
+function timeToMin(str) {
+  const [h,m] = str.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function buildRolls(machine, lunchMin, cleaningMin, shiftStart, overrides, nowMin) {
+  const speed = Math.max(0.1, machine.speed);
+  const rollDuration = Math.ceil(machine.totalRevs / speed);
+  const shiftLength = 480;
+  let curMin = machine.startTimeMin;
+  let lunchDone = false;
+  const result = [];
+
+  for (let i = 0; i < 20; i++) {
+    const lunchRel = relMin(lunchMin, shiftStart);
+    let finishAbs, hasLunch = false;
+
+    if (overrides[i] !== undefined) {
+      finishAbs = overrides[i];
+      if (!lunchDone && machine.useLunch) {
+        const overrideRel = relMin(finishAbs, shiftStart);
+        if (lunchRel <= overrideRel) lunchDone = true;
+      }
+    } else {
+      const curRel = relMin(curMin, shiftStart);
+      if (machine.useLunch && !lunchDone && curRel < lunchRel && (curRel + rollDuration) > lunchRel) {
+        curMin += 30;
+        lunchDone = true;
+        hasLunch = true;
+      }
+      finishAbs = curMin + rollDuration;
+    }
+
+    const finishRel = relMin(finishAbs, shiftStart);
+    const isOut  = finishRel > shiftLength;
+    const isPast = relMin(nowMin, shiftStart) > finishRel;
+
+    result.push({
+      index: i,
+      finishMin: ((finishAbs % 1440) + 1440) % 1440,
+      hasLunch,
+      isOutOfShift: isOut,
+      isPast
+    });
+
+    if (isOut) break;
+    curMin = finishAbs + cleaningMin;
+  }
+  return result;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STATE — backed by localStorage
+// ═══════════════════════════════════════════════════════════════
+
+const LS = {
+  get(k, def) { try { const v = localStorage.getItem(k); return v !== null ? JSON.parse(v) : def; } catch(e){ return def; } },
+  set(k, v)   { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+};
+
+const S = {
+  get shiftIndex()       { return LS.get('shiftIndex', detectShift().index); },
+  set shiftIndex(v)      { LS.set('shiftIndex', v); },
+  get lunchMin()         { return LS.get('lunchMin', -1); },
+  set lunchMin(v)        { LS.set('lunchMin', v); },
+  get lunchCustomized()  { return LS.get('lunchCustomized', false); },
+  set lunchCustomized(v) { LS.set('lunchCustomized', v); },
+  get machineCount()     { return LS.get('machineCount', 3); },
+  set machineCount(v)    { LS.set('machineCount', Math.max(1, Math.min(10, v))); },
+  get language()         { return LS.get('language', 'ru'); },
+  set language(v)        { LS.set('language', v); },
+  get notifMs()          { return LS.get('notifMs', 0); },
+  set notifMs(v)         { LS.set('notifMs', v); },
+
+  loadMachine(id) {
+    const def = { id, name: `Машина ${id}`, totalRevs: 5000, speed: 100, startTimeMin: 360, useLunch: true, cleaningMin: 12 };
+    const m = LS.get(`machine_${id}`, def);
+    m.id = id; // always force correct id
+    if (!m.cleaningMin) m.cleaningMin = 12;
+    if (m.speed === undefined) m.speed = 100;
+    return m;
+  },
+  saveMachine(id, m) { LS.set(`machine_${id}`, {...m, id}); },
+
+  loadOverrides(id) { return LS.get(`overrides_${id}`, {}); },
+  saveOverrides(id, ov) {
+    // Convert keys to strings for JSON
+    const out = {};
+    Object.keys(ov).forEach(k => { out[k] = ov[k]; });
+    LS.set(`overrides_${id}`, out);
+  },
+
+  isTimerActive(id)      { return LS.get(`timerActive_${id}`, false); },
+  setTimerActive(id, v)  { LS.set(`timerActive_${id}`, v); },
+  clearMachine(id)       { LS.set(`overrides_${id}`, {}); LS.set(`timerActive_${id}`, false); },
+
+  loadLibrary()          { return LS.get('machineLib', []); },
+  saveLibrary(lib)       { LS.set('machineLib', lib); },
+  upsertLibrary(def) {
+    const lib = this.loadLibrary();
+    const idx = lib.findIndex(d => d.name.toLowerCase() === def.name.toLowerCase());
+    if (idx >= 0) lib[idx] = def; else lib.push(def);
+    this.saveLibrary(lib);
+  },
+  deleteFromLibrary(name) {
+    this.saveLibrary(this.loadLibrary().filter(d => d.name.toLowerCase() !== name.toLowerCase()));
+  },
+
+  exportLibrary()  { return JSON.stringify(this.loadLibrary()); },
+  importLibrary(json) {
+    try {
+      const list = JSON.parse(json);
+      if (!Array.isArray(list)) return -1;
+      list.forEach(d => this.upsertLibrary(d));
+      return list.length;
+    } catch(e) { return -1; }
+  },
+
+  hardReset() { localStorage.clear(); }
+};
+
+// ═══════════════════════════════════════════════════════════════
+// NOTIFICATIONS
+// ═══════════════════════════════════════════════════════════════
+
+let notifPermission = 'default';
+async function requestNotifPermission() {
+  if ('Notification' in window) {
+    notifPermission = await Notification.requestPermission();
+  }
+}
+function showNotif(title, body, timeout) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const n = new Notification(title, { body, icon: 'icon.svg' });
+  if (timeout > 0) setTimeout(() => n.close(), timeout);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// WAKE LOCK
+// ═══════════════════════════════════════════════════════════════
+
+let wakeLock = null;
+async function acquireWakeLock() {
+  if (!('wakeLock' in navigator) || wakeLock) return;
+  try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e) {}
+}
+function releaseWakeLock() {
+  if (wakeLock) { wakeLock.release(); wakeLock = null; }
+}
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible') {
+    const anyActive = Array.from({length: S.machineCount}, (_,i) => S.isTimerActive(i+1)).some(Boolean);
+    if (anyActive) acquireWakeLock();
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════════
+
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MACHINE CARDS
+// ═══════════════════════════════════════════════════════════════
+
+// Per-card state in memory
+const cardState = {}; // id -> { isExpanded, paramsOpen, machine, overrides }
+
+// Context for time-picker overlays
+let rollTimeCtx = null; // { machineId, rollIndex, currentFinMin }
+let pickerCtx   = null; // machineId for library picker
+
+function getShiftAndLunch() {
+  const shift  = SHIFTS[S.shiftIndex] || SHIFTS[0];
+  const lunchMin = S.lunchMin >= 0 ? S.lunchMin : shift.lunchMin;
+  return { shift, lunchMin };
+}
+
+function applySavedShiftIfDefault(machine) {
+  // If startTimeMin is a standard shift start and doesn't match current shift, correct it
+  const standardTimes = new Set([360, 840, 1320]);
+  const { shift } = getShiftAndLunch();
+  if (standardTimes.has(machine.startTimeMin) && machine.startTimeMin !== shift.startMin) {
+    machine.startTimeMin = shift.startMin;
+    S.saveMachine(machine.id, machine);
+  }
+}
+
+function buildCardHTML(id) {
+  return `
+<div class="card" id="card_${id}" data-id="${id}">
+  <div class="rowA">
+    <input class="machineName" type="text" id="name_${id}" value="" autocomplete="off" spellcheck="false"/>
+    <button class="pickBtn" onclick="openPicker(${id})">▾</button>
+    <input class="revsInput" type="number" id="curRevs_${id}" placeholder="обороты" inputmode="decimal"/>
+    <button class="predictBtn" onclick="doPredict(${id})">ПРОГ<br>НОЗ</button>
+    <button class="expandBtn" id="expandBtn_${id}" onclick="toggleExpand(${id})">▸</button>
+  </div>
+  <div class="rowB">
+    <div class="timerDisplay" id="timer_${id}">--:--:--</div>
+    <div class="curRevs" id="curRevsDisplay_${id}" style="display:none"></div>
+    <div class="spacer"></div>
+    <span class="untilLabel" id="untilLabel_${id}" style="display:none">до</span>
+    <span class="endTime" id="endTime_${id}" style="display:none"></span>
+  </div>
+  <div class="expandedPanel" id="panel_${id}">
+    <hr class="panelDivider"/>
+    <div class="rowStartSettings">
+      <div class="col">
+        <span class="fieldLabel">СТАРТ</span>
+        <button class="fieldBtn" id="startBtn_${id}" onclick="pickStartTime(${id})"></button>
+      </div>
+      <div class="col">
+        <span class="fieldLabel">&nbsp;</span>
+        <button class="fieldBtn small" id="machSettBtn_${id}" onclick="toggleParams(${id})">НАСТРОЙКИ ▾</button>
+      </div>
+    </div>
+    <div class="paramsPanel" id="params_${id}">
+      <div class="col">
+        <span class="fieldLabel">ОБОРОТОВ</span>
+        <input class="paramField" type="number" id="revsField_${id}" inputmode="numeric"/>
+      </div>
+      <div class="col">
+        <span class="fieldLabel">СК/МИН</span>
+        <input class="paramField" type="number" id="speedField_${id}" inputmode="decimal" step="0.1"/>
+      </div>
+      <div class="col" style="flex:.8">
+        <span class="fieldLabel">ЧИСТКА</span>
+        <input class="paramField" type="number" id="cleanField_${id}" inputmode="numeric"/>
+      </div>
+    </div>
+    <div class="rowLunch">
+      <label class="lunchToggle">
+        <input type="checkbox" id="lunchChk_${id}" onchange="onLunchChange(${id})"/>
+        Учитывать обед
+      </label>
+      <button class="clearBtn" onclick="clearCard(${id})">[ сброс ]</button>
+    </div>
+    <hr class="rollDivider"/>
+    <div class="rollList" id="rollList_${id}"></div>
+  </div>
+</div>`;
+}
+
+function initCard(id) {
+  const machine = S.loadMachine(id);
+  applySavedShiftIfDefault(machine);
+  cardState[id] = {
+    isExpanded: false,
+    paramsOpen:  false,
+    machine,
+    overrides: S.loadOverrides(id)
+  };
+  populateCard(id);
+  recalcCard(id);
+  attachCardListeners(id);
+}
+
+function populateCard(id) {
+  const { machine } = cardState[id];
+  document.getElementById(`name_${id}`).value          = machine.name;
+  document.getElementById(`startBtn_${id}`).textContent = formatTime(machine.startTimeMin);
+  document.getElementById(`revsField_${id}`).value     = machine.totalRevs;
+  document.getElementById(`speedField_${id}`).value    = machine.speed;
+  document.getElementById(`cleanField_${id}`).value    = machine.cleaningMin;
+  document.getElementById(`lunchChk_${id}`).checked    = machine.useLunch;
+  updateCardBorder(id);
+}
+
+function attachCardListeners(id) {
+  const st = cardState[id];
+
+  document.getElementById(`name_${id}`).addEventListener('change', e => {
+    st.machine.name = e.target.value;
+    S.saveMachine(id, st.machine);
+  });
+  document.getElementById(`revsField_${id}`).addEventListener('change', e => {
+    const v = parseInt(e.target.value);
+    if (v > 0) { st.machine.totalRevs = v; S.saveMachine(id, st.machine); recalcCard(id); }
+  });
+  document.getElementById(`speedField_${id}`).addEventListener('change', e => {
+    const v = parseFloat(e.target.value.replace(',','.'));
+    if (v > 0) { st.machine.speed = v; S.saveMachine(id, st.machine); recalcCard(id); }
+  });
+  document.getElementById(`cleanField_${id}`).addEventListener('change', e => {
+    const v = parseInt(e.target.value);
+    if (v >= 0) { st.machine.cleaningMin = v; S.saveMachine(id, st.machine); recalcCard(id); }
+  });
+}
+
+function toggleExpand(id) {
+  const st = cardState[id];
+  st.isExpanded = !st.isExpanded;
+  document.getElementById(`panel_${id}`).classList.toggle('open', st.isExpanded);
+  document.getElementById(`expandBtn_${id}`).textContent = st.isExpanded ? '▾' : '▸';
+}
+
+function toggleParams(id) {
+  const st = cardState[id];
+  st.paramsOpen = !st.paramsOpen;
+  document.getElementById(`params_${id}`).classList.toggle('open', st.paramsOpen);
+  document.getElementById(`machSettBtn_${id}`).textContent = st.paramsOpen ? 'НАСТРОЙКИ ▴' : 'НАСТРОЙКИ ▾';
+}
+
+function onLunchChange(id) {
+  const st = cardState[id];
+  st.machine.useLunch = document.getElementById(`lunchChk_${id}`).checked;
+  // Only clear overrides when timer not active
+  if (!S.isTimerActive(id)) {
+    st.overrides = {};
+    S.saveOverrides(id, st.overrides);
+  }
+  S.saveMachine(id, st.machine);
+  recalcCard(id);
+}
+
+function recalcCard(id) {
+  const st = cardState[id];
+  const { shift, lunchMin } = getShiftAndLunch();
+  const rolls = buildRolls(st.machine, lunchMin, st.machine.cleaningMin, shift.startMin, st.overrides, nowMinutes());
+  renderRollList(id, rolls);
+  updateEndTimeDisplay(id, rolls);
+}
+
+function renderRollList(id, rolls) {
+  const container = document.getElementById(`rollList_${id}`);
+  container.innerHTML = '';
+  rolls.forEach(roll => {
+    const div = document.createElement('div');
+    div.className = 'rollRow' + (roll.isPast ? ' past' : '') + (roll.isOutOfShift ? ' out' : '');
+    let tags = '';
+    if (roll.hasLunch)              tags += `<span class="rollTag lunch">ОБЕД</span>`;
+    if (roll.isOutOfShift && !roll.isPast) tags += `<span class="rollTag out">ВНЕ СМЕНЫ</span>`;
+    div.innerHTML = `
+      <span class="rollNum">№${roll.index + 1}</span>
+      <div class="rollTags">${tags}</div>
+      <button class="rollTimeBtn" onclick="openRollTimePicker(${id},${roll.index},${roll.finishMin})">${formatTime(roll.finishMin)}</button>`;
+    container.appendChild(div);
+  });
+}
+
+function updateEndTimeDisplay(id, rolls) {
+  const active = S.isTimerActive(id);
+  const next = rolls.find(r => !r.isPast);
+  const show = active && next;
+  document.getElementById(`untilLabel_${id}`).style.display = show ? '' : 'none';
+  document.getElementById(`endTime_${id}`).style.display    = show ? '' : 'none';
+  if (show) document.getElementById(`endTime_${id}`).textContent = formatTime(next.finishMin);
+}
+
+function updateCardBorder(id) {
+  document.getElementById(`card_${id}`).classList.toggle('active', S.isTimerActive(id));
+}
+
+function pickStartTime(id) {
+  const st = cardState[id];
+  const m = st.machine.startTimeMin;
+  // Reuse roll time overlay for start time pick
+  rollTimeCtx = { machineId: id, rollIndex: -1, currentFinMin: m };
+  document.getElementById('rollTimePicker').value = minToTime(m);
+  openOverlay('rollTimeOverlay');
+}
+
+function openRollTimePicker(id, rollIdx, finMin) {
+  rollTimeCtx = { machineId: id, rollIndex: rollIdx, currentFinMin: finMin };
+  document.getElementById('rollTimePicker').value = minToTime(finMin);
+  openOverlay('rollTimeOverlay');
+}
+
+function saveRollTime() {
+  if (!rollTimeCtx) return;
+  const val = document.getElementById('rollTimePicker').value;
+  const min = timeToMin(val);
+  const { machineId, rollIndex } = rollTimeCtx;
+  const st = cardState[machineId];
+
+  if (rollIndex === -1) {
+    // start time
+    st.machine.startTimeMin = min;
+    st.overrides = {};
+    S.saveOverrides(machineId, st.overrides);
+    S.saveMachine(machineId, st.machine);
+    document.getElementById(`startBtn_${machineId}`).textContent = formatTime(min);
+  } else {
+    // roll override
+    st.overrides[rollIndex] = min;
+    Object.keys(st.overrides).forEach(k => { if (parseInt(k) > rollIndex) delete st.overrides[k]; });
+    S.saveOverrides(machineId, st.overrides);
+  }
+  recalcCard(machineId);
+  closeOverlay('rollTimeOverlay');
+}
+
+function clearCard(id) {
+  const st = cardState[id];
+  st.overrides = {};
+  S.clearMachine(id);
+  updateCardBorder(id);
+  updateTimerDisplay(id, 0, false);
+  document.getElementById(`untilLabel_${id}`).style.display = 'none';
+  document.getElementById(`endTime_${id}`).style.display    = 'none';
+  document.getElementById(`curRevsDisplay_${id}`).style.display = 'none';
+  recalcCard(id);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PREDICT
+// ═══════════════════════════════════════════════════════════════
+
+function doPredict(id) {
+  const st   = cardState[id];
+  const curEl = document.getElementById(`curRevs_${id}`);
+  const cur  = parseFloat(curEl.value.replace(',','.')) || 3;
+  const tot  = st.machine.totalRevs;
+  const spd  = Math.max(0.1, st.machine.speed);
+  if (cur >= tot) return;
+
+  const { shift, lunchMin } = getShiftAndLunch();
+  const nowMin  = nowMinutes();
+  const remTime = Math.ceil((tot - cur) / spd);
+  let finMin    = (nowMin + remTime) % 1440;
+
+  if (st.machine.useLunch) {
+    const nowRel   = relMin(nowMin,   shift.startMin);
+    const lunchRel = relMin(lunchMin, shift.startMin);
+    if (nowRel < lunchRel && (nowRel + remTime) > lunchRel) finMin = (finMin + 30) % 1440;
+  }
+
+  const currentRolls = buildRolls(st.machine, lunchMin, st.machine.cleaningMin, shift.startMin, st.overrides, nowMin);
+  const idx = Math.max(0, currentRolls.findIndex(r => !r.isPast));
+  st.overrides[idx] = finMin;
+  Object.keys(st.overrides).forEach(k => { if (parseInt(k) > idx) delete st.overrides[k]; });
+  S.saveOverrides(id, st.overrides);
+  curEl.value = '';
+
+  S.setTimerActive(id, true);
+  updateCardBorder(id);
+  acquireWakeLock();
+  requestNotifPermission();
+  recalcCard(id);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TIMER LOOP
+// ═══════════════════════════════════════════════════════════════
+
+const alertedWarn = new Set();
+const alertedDone = new Set();
+const alertedLunch = new Set();
+const alertedShiftEnd = new Set();
+
+function updateTimerDisplay(id, secondsLeft, done) {
+  const el  = document.getElementById(`timer_${id}`);
+  const crd = document.getElementById(`curRevsDisplay_${id}`);
+  if (done || secondsLeft <= 0) {
+    el.textContent = '--:--:--';
+    el.className = 'timerDisplay';
+    crd.style.display = 'none';
+    return;
+  }
+  el.textContent = formatCountdown(secondsLeft);
+  el.className = 'timerDisplay ' + (secondsLeft <= 300 ? 'warn' : 'running');
+
+  // Estimated current revs
+  const st = cardState[id];
+  if (st) {
+    const remaining = Math.round(secondsLeft / 60 * st.machine.speed);
+    const cur = Math.max(0, st.machine.totalRevs - remaining);
+    crd.textContent = `~${cur} об`;
+    crd.style.display = '';
+  }
+}
+
+function tick() {
+  const nowSec = nowTotalSeconds();
+  const nowMin = nowMinutes();
+  const { shift, lunchMin } = getShiftAndLunch();
+  let anyActive = false;
+
+  for (let id = 1; id <= S.machineCount; id++) {
+    if (!S.isTimerActive(id)) continue;
+    const st = cardState[id];
+    if (!st) continue;
+    const overrides = st.overrides;
+    if (!Object.keys(overrides).length) continue;
+    anyActive = true;
+
+    const rolls  = buildRolls(st.machine, lunchMin, st.machine.cleaningMin, shift.startMin, overrides, nowMin);
+    const target = rolls.find(r => !r.isPast);
+
+    if (!target) {
+      const doneKey = id * 1000 + 999;
+      if (!alertedDone.has(doneKey)) {
+        alertedDone.add(doneKey);
+        S.setTimerActive(id, false);
+        updateCardBorder(id);
+        updateTimerDisplay(id, 0, true);
+        document.getElementById(`untilLabel_${id}`).style.display = 'none';
+        document.getElementById(`endTime_${id}`).style.display = 'none';
+        document.getElementById(`curRevsDisplay_${id}`).style.display = 'none';
+        const notifMs = S.notifMs;
+        showNotif(`🔔 ${st.machine.name}`, 'Рулон готов — пора менять!', notifMs);
+      }
+      continue;
+    }
+
+    let diff = target.finishMin * 60 - nowSec;
+    if (Math.abs(diff) > 43200) diff = diff + (diff < 0 ? 86400 : -86400);
+
+    updateTimerDisplay(id, diff, diff <= 0);
+    updateEndTimeDisplay(id, rolls);
+
+    const key = id * 1000 + target.index;
+    const notifMs = S.notifMs;
+
+    if (diff > 0 && diff <= 299 && !alertedWarn.has(key)) {
+      alertedWarn.add(key);
+      showNotif(`⏰ ${st.machine.name}`, 'До смены рулона менее 5 минут!', notifMs);
+    }
+    if (diff <= 0 && !alertedDone.has(key)) {
+      alertedDone.add(key);
+      alertedWarn.delete(key);
+      showNotif(`🔔 ${st.machine.name}`, 'Рулон готов — пора менять!', notifMs);
+      S.setTimerActive(id, false);
+      updateCardBorder(id);
+    }
+    if (diff > 300) { alertedWarn.delete(key); alertedDone.delete(key); }
+  }
+
+  // Lunch and shift-end warnings
+  const nowRel      = relMin(nowMin, shift.startMin);
+  const lunchRel    = relMin(lunchMin, shift.startMin);
+  const shiftEndRel = 480;
+  const diffLunch    = lunchRel - nowRel;
+  const diffShiftEnd = shiftEndRel - nowRel;
+
+  if (diffLunch >= 1 && diffLunch <= 5 && !alertedLunch.has(shift.index)) {
+    alertedLunch.add(shift.index);
+    showNotif('🍽 Обед через 5 минут', `Обед в ${formatTime(lunchMin)}`, 0);
+  }
+  if (diffLunch < 0 || diffLunch > 30) alertedLunch.delete(shift.index);
+
+  if (diffShiftEnd >= 1 && diffShiftEnd <= 5 && !alertedShiftEnd.has(shift.index)) {
+    alertedShiftEnd.add(shift.index);
+    showNotif('⏰ Конец смены через 5 минут', `Смена заканчивается в ${formatTime(shift.endMin)}`, 0);
+  }
+  if (diffShiftEnd < 0 || diffShiftEnd > 30) alertedShiftEnd.delete(shift.index);
+
+  if (!anyActive) releaseWakeLock();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MACHINE LIBRARY
+// ═══════════════════════════════════════════════════════════════
+
+function openPicker(id) {
+  pickerCtx = id;
+  const lib = S.loadLibrary();
+  const list = document.getElementById('pickerList');
+  list.innerHTML = '';
+  if (!lib.length) {
+    list.innerHTML = '<div style="color:var(--txtHint);text-align:center;padding:20px">Библиотека пуста</div>';
+  } else {
+    lib.forEach(def => {
+      const item = document.createElement('div');
+      item.className = 'machineItem';
+      const spd = def.speed === Math.floor(def.speed) ? def.speed.toString() : def.speed.toFixed(1);
+      item.innerHTML = `
+        <div style="flex:1">
+          <div class="machineItemName">${def.name}</div>
+          <div class="machineItemSub">${def.totalRevs}об, ${spd}об/мин, чист.${def.cleaningMin}мин</div>
+        </div>
+        <button class="machineItemDel" onclick="event.stopPropagation();deleteTemplate('${def.name.replace(/'/g,"\\'")}')">🗑</button>`;
+      item.addEventListener('click', () => loadFromLibrary(def));
+      list.appendChild(item);
+    });
+  }
+  openOverlay('pickerOverlay');
+}
+
+function loadFromLibrary(def) {
+  const id = pickerCtx;
+  if (!id) return;
+  const st = cardState[id];
+  const m  = st.machine;
+  m.name         = def.name;
+  m.totalRevs    = def.totalRevs;
+  m.speed        = def.speed;
+  m.cleaningMin  = def.cleaningMin;
+  m.useLunch     = def.useLunch;
+  S.saveMachine(id, m);
+  st.overrides = {};
+  S.saveOverrides(id, st.overrides);
+  populateCard(id);
+  recalcCard(id);
+  closeOverlay('pickerOverlay');
+}
+
+function deleteTemplate(name) {
+  S.deleteFromLibrary(name);
+  openPicker(pickerCtx); // refresh
+}
+
+function saveToLibrary() {
+  const id = pickerCtx;
+  if (!id) return;
+  const m = cardState[id].machine;
+  const def = { name: m.name, totalRevs: m.totalRevs, speed: m.speed, cleaningMin: m.cleaningMin, useLunch: m.useLunch };
+  S.upsertLibrary(def);
+  toast(`${m.name} — шаблон сохранён`);
+  closeOverlay('pickerOverlay');
+}
+
+function exportLibrary() {
+  const json = S.exportLibrary();
+  const blob = new Blob([json], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'time_calculator_machines.json';
+  a.click(); URL.revokeObjectURL(url);
+  toast('Экспорт завершён');
+}
+
+document.getElementById('importFile').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const count = S.importLibrary(ev.target.result);
+    toast(count >= 0 ? `Импортировано: ${count} машин` : 'Ошибка импорта');
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════════════════════
+
+const NOTIF_OPTIONS = [
+  { ms: 0,       label: 'Остаются (убрать вручную)' },
+  { ms: 30000,   label: 'Исчезают через 30 сек' },
+  { ms: 60000,   label: 'Исчезают через 1 мин' },
+  { ms: 300000,  label: 'Исчезают через 5 мин' },
+];
+
+let tmpCount = 3;
+function openSettings() {
+  // Build notif radios
+  const notifMs = S.notifMs;
+  const container = document.getElementById('notifRadios');
+  container.innerHTML = '';
+  NOTIF_OPTIONS.forEach(opt => {
+    const lbl = document.createElement('label');
+    lbl.className = 'radioLabel';
+    lbl.innerHTML = `<input type="radio" name="notif" value="${opt.ms}" ${opt.ms === notifMs ? 'checked' : ''}> ${opt.label}`;
+    container.appendChild(lbl);
+  });
+  // Machine count stepper
+  tmpCount = S.machineCount;
+  document.getElementById('cntVal').textContent = tmpCount;
+  // Language
+  document.getElementById('langSelect').value = S.language;
+  openOverlay('settingsOverlay');
+}
+
+document.getElementById('cntMinus').onclick = () => { if (tmpCount > 1) { tmpCount--; document.getElementById('cntVal').textContent = tmpCount; } };
+document.getElementById('cntPlus').onclick  = () => { if (tmpCount < 10) { tmpCount++; document.getElementById('cntVal').textContent = tmpCount; } };
+
+function saveSettings() {
+  const sel = document.querySelector('input[name="notif"]:checked');
+  if (sel) S.notifMs = parseInt(sel.value);
+  const newLang    = document.getElementById('langSelect').value;
+  const langChanged  = newLang !== S.language;
+  const countChanged = tmpCount !== S.machineCount;
+
+  if (langChanged) { S.language = newLang; applyLanguage(); }
+  if (countChanged) { S.machineCount = tmpCount; rebuildCards(); }
+  closeOverlay('settingsOverlay');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LANGUAGE
+// ═══════════════════════════════════════════════════════════════
+
+const L = {
+  ru: {
+    appTitle:'TIME CALC', shift0:'1-я смена (06–14)', shift1:'2-я смена (14–22)', shift2:'3-я смена (22–06)',
+    predict:'ПРОГ\nНОЗ', settings:'НАСТРОЙКИ ▾', settingsOpen:'НАСТРОЙКИ ▴',
+    lunchSwitch:'Учитывать обед', clear:'[ сброс ]', rollDone:'ГОТОВО',
+    tagLunch:'ОБЕД', tagOut:'ВНЕ СМЕНЫ', until:'до',
+    settingsTitle:'НАСТРОЙКИ', notifSection:'УВЕДОМЛЕНИЯ О РУЛОНАХ',
+    countSection:'КОЛИЧЕСТВО МАШИН', langSection:'ЯЗЫК', exportImport:'ЭКСПОРТ / ИМПОРТ МАШИН',
+    exportBtn:'↑ Экспорт', importBtn:'↓ Импорт', saveBtn:'Сохранить',
+    notifOptions:['Остаются (убрать вручную)','Исчезают через 30 сек','Исчезают через 1 мин','Исчезают через 5 мин'],
+    pickerTitle:'ВЫБОР МАШИНЫ', saveTemplate:'＋ Сохранить шаблон', emptyLib:'Библиотека пуста',
+    lunchTitle:'ВРЕМЯ ОБЕДА', rollTimeTitle:'ВРЕМЯ РУЛОНА',
+    resetBtn:'[ ПОЛНЫЙ СБРОС ]', resetConfirm:'Сбросить все настройки и данные?',
+    templateSaved:'шаблон сохранён', exported:'Экспорт завершён', imported:'Импортировано: %d машин', importErr:'Ошибка импорта',
+    start:'СТАРТ', langName:'Русский',
+  },
+  pl: {
+    appTitle:'TIME CALC', shift0:'1-sza zmiana (06–14)', shift1:'2-ga zmiana (14–22)', shift2:'3-cia zmiana (22–06)',
+    predict:'PROG\nNOZA', settings:'USTAWIENIA ▾', settingsOpen:'USTAWIENIA ▴',
+    lunchSwitch:'Uwzględnij obiad', clear:'[ reset ]', rollDone:'GOTOWE',
+    tagLunch:'OBIAD', tagOut:'POZA ZMIANĄ', until:'do',
+    settingsTitle:'USTAWIENIA', notifSection:'POWIADOMIENIA O NAWOJACH',
+    countSection:'LICZBA MASZYN', langSection:'JĘZYK', exportImport:'EKSPORT / IMPORT MASZYN',
+    exportBtn:'↑ Eksport', importBtn:'↓ Import', saveBtn:'Zapisz',
+    notifOptions:['Pozostają (usuń ręcznie)','Znikają po 30 sek','Znikają po 1 min','Znikają po 5 min'],
+    pickerTitle:'WYBÓR MASZYNY', saveTemplate:'＋ Zapisz szablon', emptyLib:'Biblioteka pusta',
+    lunchTitle:'CZAS OBIADU', rollTimeTitle:'CZAS NAWOJU',
+    resetBtn:'[ PEŁNY RESET ]', resetConfirm:'Zresetować wszystkie ustawienia i dane?',
+    templateSaved:'szablon zapisany', exported:'Eksport zakończony', imported:'Zaimportowano: %d maszyn', importErr:'Błąd importu',
+    start:'START', langName:'Polski',
+  }
+};
+
+function t(key, ...args) {
+  const lang = S.language;
+  let str = (L[lang] || L.ru)[key] || key;
+  args.forEach(a => { str = str.replace('%d', a); });
+  return str;
+}
+
+function applyLanguage() {
+  document.getElementById('appTitle').textContent = t('appTitle');
+  document.getElementById('shiftSelect').options[0].textContent = t('shift0');
+  document.getElementById('shiftSelect').options[1].textContent = t('shift1');
+  document.getElementById('shiftSelect').options[2].textContent = t('shift2');
+  document.getElementById('resetBtn').textContent = t('resetBtn');
+  document.querySelector('.sheetTitle') && (document.querySelector('.sheetTitle').textContent = t('settingsTitle'));
+  document.getElementById('settingsOverlay').querySelector('.sheetTitle').textContent = t('settingsTitle');
+  document.getElementById('lunchOverlay').querySelector('.sheetTitle').textContent = t('lunchTitle');
+  document.getElementById('rollTimeOverlay').querySelector('.sheetTitle').textContent = t('rollTimeTitle');
+  document.getElementById('pickerOverlay').querySelector('.sheetTitle').textContent = t('pickerTitle');
+
+  // Update all card labels per language
+  for (let id = 1; id <= S.machineCount; id++) {
+    const lunchLbl = document.querySelector(`#card_${id} .lunchToggle`);
+    if (lunchLbl) lunchLbl.lastChild.textContent = ' ' + t('lunchSwitch');
+    const clearBtn = document.querySelector(`#card_${id} .clearBtn`);
+    if (clearBtn) clearBtn.textContent = t('clear');
+    const untilLbl = document.getElementById(`untilLabel_${id}`);
+    if (untilLbl) untilLbl.textContent = t('until');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// OVERLAYS
+// ═══════════════════════════════════════════════════════════════
+
+function openOverlay(id) {
+  document.getElementById(id).classList.add('open');
+}
+function closeOverlay(id) {
+  document.getElementById(id).classList.remove('open');
+}
+// Close on backdrop click
+document.querySelectorAll('.overlay').forEach(ov => {
+  ov.addEventListener('click', e => { if (e.target === ov) ov.classList.remove('open'); });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// LUNCH
+// ═══════════════════════════════════════════════════════════════
+
+function openLunch() {
+  const { shift, lunchMin } = getShiftAndLunch();
+  document.getElementById('lunchTimePicker').value = minToTime(lunchMin);
+  openOverlay('lunchOverlay');
+}
+function saveLunch() {
+  const val = document.getElementById('lunchTimePicker').value;
+  S.lunchMin = timeToMin(val);
+  S.lunchCustomized = true;
+  document.getElementById('lunchBtn').textContent = formatTime(S.lunchMin);
+  for (let id = 1; id <= S.machineCount; id++) recalcCard(id);
+  closeOverlay('lunchOverlay');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BUILD / REBUILD
+// ═══════════════════════════════════════════════════════════════
+
+function rebuildCards() {
+  const container = document.getElementById('machinesContainer');
+  container.innerHTML = '';
+  const count = S.machineCount;
+  for (let id = 1; id <= count; id++) {
+    const div = document.createElement('div');
+    div.innerHTML = buildCardHTML(id);
+    container.appendChild(div.firstElementChild);
+    initCard(id);
+  }
+  applyLanguage();
+}
+
+function refreshAllFromStorage() {
+  // Sync any changes from storage (e.g. after visibility change)
+  for (let id = 1; id <= S.machineCount; id++) {
+    if (!cardState[id]) continue;
+    cardState[id].machine   = S.loadMachine(id);
+    cardState[id].overrides = S.loadOverrides(id);
+    applySavedShiftIfDefault(cardState[id].machine);
+    populateCard(id);
+    recalcCard(id);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SHIFT CHANGE
+// ═══════════════════════════════════════════════════════════════
+
+document.getElementById('shiftSelect').addEventListener('change', e => {
+  const idx = parseInt(e.target.value);
+  S.shiftIndex = idx;
+  const shift = SHIFTS[idx];
+  if (!S.lunchCustomized) {
+    S.lunchMin = shift.lunchMin;
+    document.getElementById('lunchBtn').textContent = formatTime(shift.lunchMin);
+  }
+  // Apply shift to all cards
+  for (let id = 1; id <= S.machineCount; id++) {
+    const st = cardState[id];
+    if (!st) continue;
+    const standard = new Set([360, 840, 1320]);
+    if (standard.has(st.machine.startTimeMin)) {
+      st.machine.startTimeMin = shift.startMin;
+      document.getElementById(`startBtn_${id}`).textContent = formatTime(shift.startMin);
+      st.overrides = {};
+      S.setTimerActive(id, false);
+      S.saveOverrides(id, st.overrides);
+      S.saveMachine(id, st.machine);
+      updateCardBorder(id);
+    }
+    recalcCard(id);
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════════
+
+document.getElementById('lunchBtn').addEventListener('click', openLunch);
+document.getElementById('settingsBtn').addEventListener('click', openSettings);
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if (confirm(t('resetConfirm'))) { S.hardReset(); location.reload(); }
+});
+
+// Detect and apply current shift on boot
+(function initShift() {
+  const detected = detectShift();
+  const saved    = S.shiftIndex;
+  // Use detected shift
+  S.shiftIndex = detected.index;
+  document.getElementById('shiftSelect').value = detected.index;
+  if (!S.lunchCustomized) {
+    S.lunchMin = detected.lunchMin;
+  }
+  document.getElementById('lunchBtn').textContent = formatTime(
+    S.lunchMin >= 0 ? S.lunchMin : detected.lunchMin
+  );
+})();
+
+rebuildCards();
+applyLanguage();
+
+// Main timer interval
+setInterval(tick, 1000);
+
+// Re-sync on visibility restore
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') refreshAllFromStorage();
+});
+
+// Service worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>

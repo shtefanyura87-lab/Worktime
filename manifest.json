@@ -1,0 +1,13 @@
+{
+  "name": "Time Calculator",
+  "short_name": "TimeCalc",
+  "description": "Weaving factory shift timer",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#1E1E1E",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
