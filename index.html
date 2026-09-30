@@ -1,1183 +1,161 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
-<meta name="theme-color" content="#1E1E1E"/>
-<meta name="mobile-web-app-capable" content="yes"/>
-<meta name="apple-mobile-web-app-capable" content="yes"/>
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-<title>Time Calculator</title>
-<link rel="manifest" href="manifest.json"/>
-<link rel="icon" href="icon.svg"/>
+<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#1E1E1E"><link rel="manifest" href="manifest.json"><link rel="icon" href="icon-192.png"><title>Time Calculator</title>
 <style>
-:root {
-  --bg:       #121212;
-  --bgCard:   #1E1E1E;
-  --bgInput:  #2C2C2C;
-  --bgPredict:#1A2A2A;
-  --border:   #333;
-  --borderA:  #03DAC6;
-  --accent:   #03DAC6;
-  --timerOff: #555;
-  --timerWarn:#FFA726;
-  --txt:      #E0E0E0;
-  --txtSec:   #AAAAAA;
-  --txtHint:  #555;
-  --tagLunch: #FFA726;
-  --tagOut:   #CF6679;
-  --divider:  #2A2A2A;
-  --radius:   8px;
-}
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-html,body{height:100%;background:var(--bg);color:var(--txt);font-family:'Courier New',Courier,monospace;font-size:15px;overscroll-behavior:none;}
-
-/* ── Layout ── */
-#app{display:flex;flex-direction:column;height:100dvh;}
-#header{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--bgCard);border-bottom:1px solid var(--divider);flex-shrink:0;}
-#appTitle{font-size:13px;font-weight:bold;color:var(--accent);letter-spacing:.08em;white-space:nowrap;}
-#shiftSelect{flex:1;background:var(--bgInput);color:var(--txt);border:none;border-radius:var(--radius);padding:6px 8px;font-family:inherit;font-size:13px;height:36px;}
-#lunchBtn{background:var(--bgInput);color:var(--accent);border:none;border-radius:var(--radius);padding:0 10px;font-family:inherit;font-size:13px;height:36px;cursor:pointer;white-space:nowrap;}
-#settingsBtn{background:none;border:none;color:#888;font-size:20px;cursor:pointer;padding:4px 6px;line-height:1;}
-#scroll{flex:1;overflow-y:auto;padding:8px;-webkit-overflow-scrolling:touch;}
-#machinesContainer{display:flex;flex-direction:column;gap:6px;}
-#resetBtn{text-align:center;color:var(--txtHint);font-size:10px;padding:14px;cursor:pointer;letter-spacing:.05em;}
-
-/* ── Cards ── */
-.card{background:var(--bgCard);border-radius:var(--radius);border:1px solid var(--border);padding:10px 12px;transition:border-color .2s;}
-.card.active{border-color:var(--borderA);}
-
-/* Row A */
-.rowA{display:flex;align-items:center;gap:4px;height:54px;}
-.machineName{flex:1.6;height:100%;background:var(--bgInput);border:none;border-radius:var(--radius);color:var(--accent);font-family:inherit;font-size:17px;font-weight:bold;padding:0 8px;min-width:0;}
-.machineName:focus{outline:1px solid var(--accent);}
-.pickBtn{width:36px;height:100%;background:var(--bgInput);border:none;border-radius:var(--radius);color:var(--txtSec);font-size:15px;cursor:pointer;flex-shrink:0;}
-.revsInput{flex:1;height:100%;background:var(--bgInput);border:none;border-radius:var(--radius);color:var(--txt);font-family:inherit;font-size:15px;text-align:center;padding:0 6px;min-width:0;}
-.revsInput::placeholder{color:var(--txtHint);font-size:12px;}
-.revsInput:focus{outline:1px solid var(--accent);}
-.predictBtn{width:54px;height:54px;background:var(--accent);border:none;border-radius:var(--radius);color:#121212;font-family:inherit;font-size:11px;font-weight:bold;cursor:pointer;flex-shrink:0;line-height:1.2;}
-.expandBtn{width:32px;height:100%;background:none;border:none;color:var(--txtSec);font-size:20px;cursor:pointer;flex-shrink:0;}
-
-/* Row B */
-.rowB{display:flex;align-items:center;height:38px;margin-top:5px;}
-.timerDisplay{font-size:21px;font-weight:bold;color:var(--timerOff);font-family:inherit;white-space:nowrap;}
-.timerDisplay.running{color:var(--accent);}
-.timerDisplay.warn{color:var(--timerWarn);}
-.timerDisplay.paused{color:var(--txtSec);}
-.curRevs{font-size:12px;color:var(--txtHint);margin-left:10px;}
-.spacer{flex:1;}
-.untilLabel{font-size:12px;color:var(--txtSec);margin-right:6px;}
-.endTime{font-size:18px;font-weight:bold;color:var(--txt);}
-
-/* Expanded panel */
-.expandedPanel{display:none;margin-top:0;}
-.expandedPanel.open{display:block;}
-.panelDivider{border:none;border-top:1px solid var(--divider);margin:10px 0;}
-
-.rowStartSettings{display:flex;gap:8px;margin-bottom:10px;}
-.col{flex:1;display:flex;flex-direction:column;gap:4px;}
-.fieldLabel{font-size:9px;color:var(--txtSec);letter-spacing:.05em;}
-.fieldBtn{height:48px;background:var(--bgInput);border:none;border-radius:var(--radius);color:var(--txt);font-family:inherit;font-size:16px;cursor:pointer;}
-.fieldBtn.small{font-size:12px;color:var(--txtSec);}
-
-.paramsPanel{display:none;flex-direction:row;gap:6px;margin-bottom:10px;}
-.paramsPanel.open{display:flex;}
-.paramField{height:48px;width:100%;background:var(--bgInput);border:none;border-radius:var(--radius);color:var(--txt);font-family:inherit;font-size:16px;text-align:center;padding:0 6px;}
-.paramField:focus{outline:1px solid var(--accent);}
-
-.rowLunch{display:flex;align-items:center;height:48px;gap:8px;margin-bottom:10px;}
-.lunchToggle{display:flex;align-items:center;gap:10px;flex:1;cursor:pointer;font-size:15px;color:var(--txtSec);}
-.lunchToggle input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent);cursor:pointer;}
-.clearBtn{color:var(--txtHint);font-size:14px;cursor:pointer;padding:8px;background:none;border:none;font-family:inherit;}
-
-/* Roll list */
-.rollDivider{border:none;border-top:1px solid var(--divider);margin-bottom:6px;}
-.rollList{display:flex;flex-direction:column;gap:2px;}
-.rollRow{display:flex;align-items:center;padding:6px 0;opacity:1;transition:opacity .2s;}
-.rollRow.past,.rollRow.out{opacity:.35;}
-.rollNum{font-size:16px;font-weight:bold;color:var(--txt);width:44px;flex-shrink:0;}
-.rollTags{flex:1;display:flex;gap:4px;align-items:center;}
-.rollTag{font-size:10px;padding:3px 8px;border-radius:4px;}
-.rollTag.lunch{color:var(--tagLunch);border:1px solid var(--tagLunch);}
-.rollTag.out{color:var(--tagOut);border:1px solid var(--tagOut);}
-.rollTimeBtn{height:38px;width:88px;background:var(--bgInput);border:none;border-radius:var(--radius);color:var(--accent);font-family:inherit;font-size:16px;font-weight:bold;cursor:pointer;flex-shrink:0;}
-
-/* ── Dialogs / Overlays ── */
-.overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
-.overlay.open{opacity:1;pointer-events:all;}
-.sheet{background:var(--bgCard);border-radius:16px 16px 0 0;width:100%;max-height:85vh;overflow-y:auto;padding:20px 20px 40px;transform:translateY(30px);transition:transform .2s;}
-.overlay.open .sheet{transform:translateY(0);}
-.sheetTitle{font-size:16px;font-weight:bold;color:var(--accent);margin-bottom:16px;letter-spacing:.05em;}
-.sheetSection{font-size:10px;color:var(--txtSec);letter-spacing:.08em;margin:16px 0 8px;}
-.sheetRow{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
-.sheetBtn{flex:1;height:44px;background:var(--bgInput);border:none;border-radius:var(--radius);color:var(--txt);font-family:inherit;font-size:14px;cursor:pointer;}
-.sheetBtnAccent{background:var(--accent);color:#121212;font-weight:bold;}
-.sheetSelect{width:100%;height:44px;background:var(--bgInput);border:none;border-radius:var(--radius);color:var(--txt);font-family:inherit;font-size:14px;padding:0 10px;}
-.sheetClose{position:absolute;top:16px;right:20px;background:none;border:none;color:var(--txtHint);font-size:22px;cursor:pointer;}
-
-/* Notif radio */
-.radioGroup{display:flex;flex-direction:column;gap:6px;}
-.radioLabel{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:var(--txt);}
-.radioLabel input{accent-color:var(--accent);width:18px;height:18px;}
-
-/* Count stepper */
-.stepper{display:flex;align-items:center;gap:0;}
-.stepBtn{width:48px;height:44px;background:var(--bgInput);border:none;border-radius:var(--radius);color:var(--txt);font-size:22px;cursor:pointer;}
-.stepVal{flex:1;text-align:center;font-size:24px;font-weight:bold;}
-
-/* Toggle switch */
-.switchRow{display:flex;align-items:center;gap:12px;height:44px;}
-.switchLabel{flex:1;font-size:14px;color:var(--txt);}
-.switchHint{font-size:11px;color:var(--txtHint);}
-.toggle{position:relative;width:48px;height:26px;flex-shrink:0;}
-.toggle input{opacity:0;width:0;height:0;}
-.toggleSlider{position:absolute;inset:0;background:var(--bgInput);border-radius:13px;cursor:pointer;transition:.2s;}
-.toggle input:checked + .toggleSlider{background:var(--accent);}
-.toggleSlider::before{content:'';position:absolute;width:20px;height:20px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s;}
-.toggle input:checked + .toggleSlider::before{transform:translateX(22px);}
-
-/* Machine picker */
-.machineList{display:flex;flex-direction:column;gap:4px;max-height:40vh;overflow-y:auto;}
-.machineItem{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--bgInput);border-radius:var(--radius);cursor:pointer;}
-.machineItem:hover{background:#383838;}
-.machineItemName{flex:1;font-weight:bold;font-size:15px;}
-.machineItemSub{font-size:11px;color:var(--txtHint);}
-.machineItemDel{background:none;border:none;color:var(--txtHint);font-size:18px;cursor:pointer;padding:0 4px;}
-
-/* Time picker */
-.timePicker{display:flex;align-items:center;justify-content:center;gap:8px;margin:16px 0;}
-.timePicker input[type=time]{background:var(--bgInput);border:none;border-radius:var(--radius);color:var(--txt);font-family:inherit;font-size:24px;padding:10px 16px;width:160px;text-align:center;}
-
-/* Toast */
-#toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#333;color:var(--txt);padding:10px 20px;border-radius:20px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:200;white-space:nowrap;}
-#toast.show{opacity:1;}
-
-/* Scrollbar */
-::-webkit-scrollbar{width:4px;}
-::-webkit-scrollbar-track{background:transparent;}
-::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
-
-@media(min-width:600px){
-  #scroll{max-width:600px;margin:0 auto;}
-  #header{max-width:600px;margin:0 auto;width:100%;}
-}
-</style>
-</head>
-<body>
-<div id="app">
-  <div id="header">
-    <span id="appTitle">TIME CALC</span>
-    <select id="shiftSelect">
-      <option value="0">1-я смена (06–14)</option>
-      <option value="1">2-я смена (14–22)</option>
-      <option value="2">3-я смена (22–06)</option>
-    </select>
-    <button id="lunchBtn">10:00</button>
-    <button id="settingsBtn">⚙</button>
-  </div>
-  <div id="scroll">
-    <div id="machinesContainer"></div>
-    <div id="resetBtn">[ ПОЛНЫЙ СБРОС ]</div>
-  </div>
-</div>
-
-<!-- Overlays -->
-<div class="overlay" id="settingsOverlay">
-  <div class="sheet" style="position:relative">
-    <button class="sheetClose" onclick="closeOverlay('settingsOverlay')">✕</button>
-    <div class="sheetTitle">НАСТРОЙКИ</div>
-
-    <div class="sheetSection">УВЕДОМЛЕНИЯ О РУЛОНАХ</div>
-    <div class="radioGroup" id="notifRadios"></div>
-
-    <div class="sheetSection">КОЛИЧЕСТВО МАШИН</div>
-    <div class="stepper">
-      <button class="stepBtn" id="cntMinus">−</button>
-      <div class="stepVal" id="cntVal">3</div>
-      <button class="stepBtn" id="cntPlus">+</button>
-    </div>
-
-    <div class="sheetSection">ЯЗЫК</div>
-    <select class="sheetSelect" id="langSelect">
-      <option value="ru">Русский</option>
-      <option value="pl">Polski</option>
-    </select>
-
-    <div class="sheetSection">ЭКСПОРТ / ИМПОРТ МАШИН</div>
-    <div class="sheetRow">
-      <button class="sheetBtn" onclick="exportLibrary()">↑ Экспорт</button>
-      <button class="sheetBtn" onclick="document.getElementById('importFile').click()">↓ Импорт</button>
-    </div>
-    <input type="file" id="importFile" accept=".json,application/json" style="display:none"/>
-
-    <div style="height:16px"></div>
-    <button class="sheetBtn sheetBtnAccent" onclick="saveSettings()" style="width:100%;height:48px;">Сохранить</button>
-  </div>
-</div>
-
-<div class="overlay" id="lunchOverlay">
-  <div class="sheet" style="position:relative">
-    <button class="sheetClose" onclick="closeOverlay('lunchOverlay')">✕</button>
-    <div class="sheetTitle">ВРЕМЯ ОБЕДА</div>
-    <div class="timePicker"><input type="time" id="lunchTimePicker"/></div>
-    <button class="sheetBtn sheetBtnAccent" onclick="saveLunch()" style="width:100%;height:48px;">Сохранить</button>
-  </div>
-</div>
-
-<div class="overlay" id="rollTimeOverlay">
-  <div class="sheet" style="position:relative">
-    <button class="sheetClose" onclick="closeOverlay('rollTimeOverlay')">✕</button>
-    <div class="sheetTitle">ВРЕМЯ РУЛОНА</div>
-    <div class="timePicker"><input type="time" id="rollTimePicker"/></div>
-    <button class="sheetBtn sheetBtnAccent" onclick="saveRollTime()" style="width:100%;height:48px;">Сохранить</button>
-  </div>
-</div>
-
-<div class="overlay" id="pickerOverlay">
-  <div class="sheet" style="position:relative">
-    <button class="sheetClose" onclick="closeOverlay('pickerOverlay')">✕</button>
-    <div class="sheetTitle">ВЫБОР МАШИНЫ</div>
-    <div class="machineList" id="pickerList"></div>
-    <div style="margin-top:12px;">
-      <button class="sheetBtn" onclick="saveToLibrary()" style="width:100%;height:44px;">＋ Сохранить шаблон</button>
-    </div>
-  </div>
-</div>
-
-<div id="toast"></div>
-
+:root{--bg:#121212;--c:#1E1E1E;--i:#2C2C2C;--a:#03DAC6;--w:#FFA726;--t:#E0E0E0;--s:#AAA;--h:#666;--p:#CE93D8;--r:#CF6679}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}[hidden]{display:none!important}
+body{background:var(--bg);color:var(--t);font:15px monospace;height:100dvh;display:flex;flex-direction:column;overscroll-behavior:none}
+button,input,select{font:inherit;color:inherit;border:0;background:var(--i);border-radius:8px}button{cursor:pointer}
+button.ghost{background:none;color:var(--h)}
+header{display:flex;gap:8px;align-items:center;padding:10px 12px;padding-top:max(10px,env(safe-area-inset-top));background:var(--c)}
+header b{color:var(--a);font-size:12px}header select{flex:1;height:36px;min-width:0;padding:0 6px}header button{height:36px;padding:0 10px;color:var(--a)}
+main{flex:1;overflow:auto;padding:8px}#list{display:flex;flex-direction:column;gap:6px}
+.card{background:var(--c);border:1px solid #333;border-radius:10px;padding:10px 12px}.card.on{border-color:var(--a)}.card.drag{opacity:.5}
+.r{display:flex;align-items:center;gap:6px}.A{height:54px}.A>*{height:100%}
+.h{width:26px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--h);font-size:20px;touch-action:none}
+.nm{flex:1.6;min-width:0;color:var(--a);font-weight:bold;font-size:17px;padding:0 8px}.cr{flex:1;min-width:0;text-align:center;padding:0 4px}
+.pg{width:54px;flex:none;background:var(--a);color:#121212;font-weight:bold;font-size:10px}
+.tm{font-size:21px;font-weight:bold;color:#555}.tm.run{color:var(--a)}.tm.warn{color:var(--w)}small{font-size:12px;color:var(--s)}
+hr{border:0;border-top:1px solid #2a2a2a;margin:10px 0}
+.f{flex:1;display:flex;flex-direction:column;gap:3px;min-width:0}.f label{font-size:10px;color:var(--s)}.f input,.f select,.f button{height:46px;text-align:center;font-size:16px;width:100%}
+.lu{flex:1;display:flex;align-items:center;gap:10px;color:var(--s)}.lu input{width:20px;height:20px;accent-color:var(--a)}
+.rl{display:flex;align-items:center;gap:6px;padding:6px 0}.rl b{min-width:44px}.tg{flex:1}.tg i{font-style:normal;font-size:10px;border:1px solid;border-radius:4px;padding:2px 6px;margin-right:4px}
+.rt{height:38px;width:88px;color:var(--a);font-weight:bold;font-size:16px}
+#rsb{display:block;margin:10px auto;color:var(--h);font-size:11px}
+#ov{position:fixed;inset:0;background:#000b;display:none;align-items:flex-end;z-index:9}#ov.o{display:flex}
+#box{background:var(--c);width:100%;max-height:90dvh;overflow:auto;padding:16px 16px 28px;border-radius:16px 16px 0 0;display:flex;flex-direction:column;gap:8px}
+#box h3{color:var(--a)}#box>label{font-size:11px;color:var(--s);margin-top:6px}.rd{display:flex;gap:10px;align-items:center}.rd input{width:18px;height:18px;accent-color:var(--a)}
+.b{flex:1;height:44px}.p{background:var(--a);color:#121212;font-weight:bold}
+.li{display:flex;align-items:center;background:var(--i);border-radius:8px;padding:8px 12px}.li>div{flex:1}.li small{display:block}.li .x{background:none;font-size:18px}
+.big{font-size:56px;font-weight:bold;color:var(--a);text-align:center}.tap{width:200px;height:200px;border-radius:50%;align-self:center;background:#03dac61a;border:2px solid var(--a);color:var(--a);font-size:22px;font-weight:bold;margin:8px}
+#tb{position:fixed;top:12px;left:12px;right:12px;background:#333;padding:12px;border-radius:10px;z-index:99;display:none;border-left:4px solid var(--a)}
+</style></head><body>
+<header><b>TIME CALC</b><select id="hs"></select><button id="lb"></button><button id="cg" style="font-size:20px;color:#888">⚙</button></header>
+<main><div id="list"></div><button id="rsb" class="ghost"></button></main>
+<div id="ov"><div id="box"></div></div><div id="tb"></div>
 <script>
-// ═══════════════════════════════════════════════════════════════
-// CORE LOGIC — ported from Kotlin
-// ═══════════════════════════════════════════════════════════════
-
-const SHIFTS = [
-  { index:0, startMin:360,  endMin:840,  lunchMin:600  },  // 06–14
-  { index:1, startMin:840,  endMin:1320, lunchMin:1080 },  // 14–22
-  { index:2, startMin:1320, endMin:360,  lunchMin:120  }   // 22–06
-];
-
-function nowMinutes() {
-  const d = new Date();
-  return d.getHours() * 60 + d.getMinutes();
-}
-function nowTotalSeconds() {
-  const d = new Date();
-  return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
-}
-function relMin(absMin, shiftStart) {
-  return absMin >= shiftStart ? absMin - shiftStart : 1440 - shiftStart + absMin;
-}
-function formatTime(absMin) {
-  const m = ((absMin % 1440) + 1440) % 1440;
-  return String(Math.floor(m / 60)).padStart(2,'0') + ':' + String(m % 60).padStart(2,'0');
-}
-function formatCountdown(totalSec) {
-  if (totalSec <= 0) return 'ГОТОВО';
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
-}
-function detectShift() {
-  const n = nowMinutes();
-  if (n >= 360 && n < 840)  return SHIFTS[0];
-  if (n >= 840 && n < 1320) return SHIFTS[1];
-  return SHIFTS[2];
-}
-function minToTime(min) {
-  // For <input type="time"> value
-  const m = ((min % 1440) + 1440) % 1440;
-  return String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
-}
-function timeToMin(str) {
-  const [h,m] = str.split(':').map(Number);
-  return h * 60 + m;
-}
-
-function buildRolls(machine, lunchMin, cleaningMin, shiftStart, overrides, nowMin) {
-  const speed = Math.max(0.1, machine.speed);
-  const rollDuration = Math.ceil(machine.totalRevs / speed);
-  const shiftLength = 480;
-  let curMin = machine.startTimeMin;
-  let lunchDone = false;
-  const result = [];
-
-  for (let i = 0; i < 20; i++) {
-    const lunchRel = relMin(lunchMin, shiftStart);
-    let finishAbs, hasLunch = false;
-
-    if (overrides[i] !== undefined) {
-      finishAbs = overrides[i];
-      if (!lunchDone && machine.useLunch) {
-        const overrideRel = relMin(finishAbs, shiftStart);
-        if (lunchRel <= overrideRel) lunchDone = true;
-      }
-    } else {
-      const curRel = relMin(curMin, shiftStart);
-      if (machine.useLunch && !lunchDone && curRel < lunchRel && (curRel + rollDuration) > lunchRel) {
-        curMin += 30;
-        lunchDone = true;
-        hasLunch = true;
-      }
-      finishAbs = curMin + rollDuration;
-    }
-
-    const finishRel = relMin(finishAbs, shiftStart);
-    const isOut  = finishRel > shiftLength;
-    const isPast = relMin(nowMin, shiftStart) > finishRel;
-
-    result.push({
-      index: i,
-      finishMin: ((finishAbs % 1440) + 1440) % 1440,
-      hasLunch,
-      isOutOfShift: isOut,
-      isPast
-    });
-
-    if (isOut) break;
-    curMin = finishAbs + cleaningMin;
-  }
-  return result;
-}
-
-// ═══════════════════════════════════════════════════════════════
-// STATE — backed by localStorage
-// ═══════════════════════════════════════════════════════════════
-
-const LS = {
-  get(k, def) { try { const v = localStorage.getItem(k); return v !== null ? JSON.parse(v) : def; } catch(e){ return def; } },
-  set(k, v)   { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
-};
-
-const S = {
-  get shiftIndex()       { return LS.get('shiftIndex', detectShift().index); },
-  set shiftIndex(v)      { LS.set('shiftIndex', v); },
-  get lunchMin()         { return LS.get('lunchMin', -1); },
-  set lunchMin(v)        { LS.set('lunchMin', v); },
-  get lunchCustomized()  { return LS.get('lunchCustomized', false); },
-  set lunchCustomized(v) { LS.set('lunchCustomized', v); },
-  get machineCount()     { return LS.get('machineCount', 3); },
-  set machineCount(v)    { LS.set('machineCount', Math.max(1, Math.min(10, v))); },
-  get language()         { return LS.get('language', 'ru'); },
-  set language(v)        { LS.set('language', v); },
-  get notifMs()          { return LS.get('notifMs', 0); },
-  set notifMs(v)         { LS.set('notifMs', v); },
-
-  loadMachine(id) {
-    const def = { id, name: `Машина ${id}`, totalRevs: 5000, speed: 100, startTimeMin: 360, useLunch: true, cleaningMin: 12 };
-    const m = LS.get(`machine_${id}`, def);
-    m.id = id; // always force correct id
-    if (!m.cleaningMin) m.cleaningMin = 12;
-    if (m.speed === undefined) m.speed = 100;
-    return m;
-  },
-  saveMachine(id, m) { LS.set(`machine_${id}`, {...m, id}); },
-
-  loadOverrides(id) { return LS.get(`overrides_${id}`, {}); },
-  saveOverrides(id, ov) {
-    // Convert keys to strings for JSON
-    const out = {};
-    Object.keys(ov).forEach(k => { out[k] = ov[k]; });
-    LS.set(`overrides_${id}`, out);
-  },
-
-  isTimerActive(id)      { return LS.get(`timerActive_${id}`, false); },
-  setTimerActive(id, v)  { LS.set(`timerActive_${id}`, v); },
-  clearMachine(id)       { LS.set(`overrides_${id}`, {}); LS.set(`timerActive_${id}`, false); },
-
-  loadLibrary()          { return LS.get('machineLib', []); },
-  saveLibrary(lib)       { LS.set('machineLib', lib); },
-  upsertLibrary(def) {
-    const lib = this.loadLibrary();
-    const idx = lib.findIndex(d => d.name.toLowerCase() === def.name.toLowerCase());
-    if (idx >= 0) lib[idx] = def; else lib.push(def);
-    this.saveLibrary(lib);
-  },
-  deleteFromLibrary(name) {
-    this.saveLibrary(this.loadLibrary().filter(d => d.name.toLowerCase() !== name.toLowerCase()));
-  },
-
-  exportLibrary()  { return JSON.stringify(this.loadLibrary()); },
-  importLibrary(json) {
-    try {
-      const list = JSON.parse(json);
-      if (!Array.isArray(list)) return -1;
-      list.forEach(d => this.upsertLibrary(d));
-      return list.length;
-    } catch(e) { return -1; }
-  },
-
-  hardReset() { localStorage.clear(); }
-};
-
-// ═══════════════════════════════════════════════════════════════
-// NOTIFICATIONS
-// ═══════════════════════════════════════════════════════════════
-
-let notifPermission = 'default';
-async function requestNotifPermission() {
-  if ('Notification' in window) {
-    notifPermission = await Notification.requestPermission();
-  }
-}
-function showNotif(title, body, timeout) {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
-  const n = new Notification(title, { body, icon: 'icon.svg' });
-  if (timeout > 0) setTimeout(() => n.close(), timeout);
-}
-
-// ═══════════════════════════════════════════════════════════════
-// WAKE LOCK
-// ═══════════════════════════════════════════════════════════════
-
-let wakeLock = null;
-async function acquireWakeLock() {
-  if (!('wakeLock' in navigator) || wakeLock) return;
-  try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e) {}
-}
-function releaseWakeLock() {
-  if (wakeLock) { wakeLock.release(); wakeLock = null; }
-}
-document.addEventListener('visibilitychange', async () => {
-  if (document.visibilityState === 'visible') {
-    const anyActive = Array.from({length: S.machineCount}, (_,i) => S.isTimerActive(i+1)).some(Boolean);
-    if (anyActive) acquireWakeLock();
-  }
-});
-
-// ═══════════════════════════════════════════════════════════════
-// TOAST
-// ═══════════════════════════════════════════════════════════════
-
-let toastTimer;
-function toast(msg) {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
-}
-
-// ═══════════════════════════════════════════════════════════════
-// MACHINE CARDS
-// ═══════════════════════════════════════════════════════════════
-
-// Per-card state in memory
-const cardState = {}; // id -> { isExpanded, paramsOpen, machine, overrides }
-
-// Context for time-picker overlays
-let rollTimeCtx = null; // { machineId, rollIndex, currentFinMin }
-let pickerCtx   = null; // machineId for library picker
-
-function getShiftAndLunch() {
-  const shift  = SHIFTS[S.shiftIndex] || SHIFTS[0];
-  const lunchMin = S.lunchMin >= 0 ? S.lunchMin : shift.lunchMin;
-  return { shift, lunchMin };
-}
-
-function applySavedShiftIfDefault(machine) {
-  // If startTimeMin is a standard shift start and doesn't match current shift, correct it
-  const standardTimes = new Set([360, 840, 1320]);
-  const { shift } = getShiftAndLunch();
-  if (standardTimes.has(machine.startTimeMin) && machine.startTimeMin !== shift.startMin) {
-    machine.startTimeMin = shift.startMin;
-    S.saveMachine(machine.id, machine);
-  }
-}
-
-function buildCardHTML(id) {
-  return `
-<div class="card" id="card_${id}" data-id="${id}">
-  <div class="rowA">
-    <input class="machineName" type="text" id="name_${id}" value="" autocomplete="off" spellcheck="false"/>
-    <button class="pickBtn" onclick="openPicker(${id})">▾</button>
-    <input class="revsInput" type="number" id="curRevs_${id}" placeholder="обороты" inputmode="decimal"/>
-    <button class="predictBtn" onclick="doPredict(${id})">ПРОГ<br>НОЗ</button>
-    <button class="expandBtn" id="expandBtn_${id}" onclick="toggleExpand(${id})">▸</button>
-  </div>
-  <div class="rowB">
-    <div class="timerDisplay" id="timer_${id}">--:--:--</div>
-    <div class="curRevs" id="curRevsDisplay_${id}" style="display:none"></div>
-    <div class="spacer"></div>
-    <span class="untilLabel" id="untilLabel_${id}" style="display:none">до</span>
-    <span class="endTime" id="endTime_${id}" style="display:none"></span>
-  </div>
-  <div class="expandedPanel" id="panel_${id}">
-    <hr class="panelDivider"/>
-    <div class="rowStartSettings">
-      <div class="col">
-        <span class="fieldLabel">СТАРТ</span>
-        <button class="fieldBtn" id="startBtn_${id}" onclick="pickStartTime(${id})"></button>
-      </div>
-      <div class="col">
-        <span class="fieldLabel">&nbsp;</span>
-        <button class="fieldBtn small" id="machSettBtn_${id}" onclick="toggleParams(${id})">НАСТРОЙКИ ▾</button>
-      </div>
-    </div>
-    <div class="paramsPanel" id="params_${id}">
-      <div class="col">
-        <span class="fieldLabel">ОБОРОТОВ</span>
-        <input class="paramField" type="number" id="revsField_${id}" inputmode="numeric"/>
-      </div>
-      <div class="col">
-        <span class="fieldLabel">СК/МИН</span>
-        <input class="paramField" type="number" id="speedField_${id}" inputmode="decimal" step="0.1"/>
-      </div>
-      <div class="col" style="flex:.8">
-        <span class="fieldLabel">ЧИСТКА</span>
-        <input class="paramField" type="number" id="cleanField_${id}" inputmode="numeric"/>
-      </div>
-    </div>
-    <div class="rowLunch">
-      <label class="lunchToggle">
-        <input type="checkbox" id="lunchChk_${id}" onchange="onLunchChange(${id})"/>
-        Учитывать обед
-      </label>
-      <button class="clearBtn" onclick="clearCard(${id})">[ сброс ]</button>
-    </div>
-    <hr class="rollDivider"/>
-    <div class="rollList" id="rollList_${id}"></div>
-  </div>
-</div>`;
-}
-
-function initCard(id) {
-  const machine = S.loadMachine(id);
-  applySavedShiftIfDefault(machine);
-  cardState[id] = {
-    isExpanded: false,
-    paramsOpen:  false,
-    machine,
-    overrides: S.loadOverrides(id)
-  };
-  populateCard(id);
-  recalcCard(id);
-  attachCardListeners(id);
-}
-
-function populateCard(id) {
-  const { machine } = cardState[id];
-  document.getElementById(`name_${id}`).value          = machine.name;
-  document.getElementById(`startBtn_${id}`).textContent = formatTime(machine.startTimeMin);
-  document.getElementById(`revsField_${id}`).value     = machine.totalRevs;
-  document.getElementById(`speedField_${id}`).value    = machine.speed;
-  document.getElementById(`cleanField_${id}`).value    = machine.cleaningMin;
-  document.getElementById(`lunchChk_${id}`).checked    = machine.useLunch;
-  updateCardBorder(id);
-}
-
-function attachCardListeners(id) {
-  const st = cardState[id];
-
-  document.getElementById(`name_${id}`).addEventListener('change', e => {
-    st.machine.name = e.target.value;
-    S.saveMachine(id, st.machine);
-  });
-  document.getElementById(`revsField_${id}`).addEventListener('change', e => {
-    const v = parseInt(e.target.value);
-    if (v > 0) { st.machine.totalRevs = v; S.saveMachine(id, st.machine); recalcCard(id); }
-  });
-  document.getElementById(`speedField_${id}`).addEventListener('change', e => {
-    const v = parseFloat(e.target.value.replace(',','.'));
-    if (v > 0) { st.machine.speed = v; S.saveMachine(id, st.machine); recalcCard(id); }
-  });
-  document.getElementById(`cleanField_${id}`).addEventListener('change', e => {
-    const v = parseInt(e.target.value);
-    if (v >= 0) { st.machine.cleaningMin = v; S.saveMachine(id, st.machine); recalcCard(id); }
-  });
-}
-
-function toggleExpand(id) {
-  const st = cardState[id];
-  st.isExpanded = !st.isExpanded;
-  document.getElementById(`panel_${id}`).classList.toggle('open', st.isExpanded);
-  document.getElementById(`expandBtn_${id}`).textContent = st.isExpanded ? '▾' : '▸';
-}
-
-function toggleParams(id) {
-  const st = cardState[id];
-  st.paramsOpen = !st.paramsOpen;
-  document.getElementById(`params_${id}`).classList.toggle('open', st.paramsOpen);
-  document.getElementById(`machSettBtn_${id}`).textContent = st.paramsOpen ? 'НАСТРОЙКИ ▴' : 'НАСТРОЙКИ ▾';
-}
-
-function onLunchChange(id) {
-  const st = cardState[id];
-  st.machine.useLunch = document.getElementById(`lunchChk_${id}`).checked;
-  // Only clear overrides when timer not active
-  if (!S.isTimerActive(id)) {
-    st.overrides = {};
-    S.saveOverrides(id, st.overrides);
-  }
-  S.saveMachine(id, st.machine);
-  recalcCard(id);
-}
-
-function recalcCard(id) {
-  const st = cardState[id];
-  const { shift, lunchMin } = getShiftAndLunch();
-  const rolls = buildRolls(st.machine, lunchMin, st.machine.cleaningMin, shift.startMin, st.overrides, nowMinutes());
-  renderRollList(id, rolls);
-  updateEndTimeDisplay(id, rolls);
-}
-
-function renderRollList(id, rolls) {
-  const container = document.getElementById(`rollList_${id}`);
-  container.innerHTML = '';
-  rolls.forEach(roll => {
-    const div = document.createElement('div');
-    div.className = 'rollRow' + (roll.isPast ? ' past' : '') + (roll.isOutOfShift ? ' out' : '');
-    let tags = '';
-    if (roll.hasLunch)              tags += `<span class="rollTag lunch">ОБЕД</span>`;
-    if (roll.isOutOfShift && !roll.isPast) tags += `<span class="rollTag out">ВНЕ СМЕНЫ</span>`;
-    div.innerHTML = `
-      <span class="rollNum">№${roll.index + 1}</span>
-      <div class="rollTags">${tags}</div>
-      <button class="rollTimeBtn" onclick="openRollTimePicker(${id},${roll.index},${roll.finishMin})">${formatTime(roll.finishMin)}</button>`;
-    container.appendChild(div);
-  });
-}
-
-function updateEndTimeDisplay(id, rolls) {
-  const active = S.isTimerActive(id);
-  const next = rolls.find(r => !r.isPast);
-  const show = active && next;
-  document.getElementById(`untilLabel_${id}`).style.display = show ? '' : 'none';
-  document.getElementById(`endTime_${id}`).style.display    = show ? '' : 'none';
-  if (show) document.getElementById(`endTime_${id}`).textContent = formatTime(next.finishMin);
-}
-
-function updateCardBorder(id) {
-  document.getElementById(`card_${id}`).classList.toggle('active', S.isTimerActive(id));
-}
-
-function pickStartTime(id) {
-  const st = cardState[id];
-  const m = st.machine.startTimeMin;
-  // Reuse roll time overlay for start time pick
-  rollTimeCtx = { machineId: id, rollIndex: -1, currentFinMin: m };
-  document.getElementById('rollTimePicker').value = minToTime(m);
-  openOverlay('rollTimeOverlay');
-}
-
-function openRollTimePicker(id, rollIdx, finMin) {
-  rollTimeCtx = { machineId: id, rollIndex: rollIdx, currentFinMin: finMin };
-  document.getElementById('rollTimePicker').value = minToTime(finMin);
-  openOverlay('rollTimeOverlay');
-}
-
-function saveRollTime() {
-  if (!rollTimeCtx) return;
-  const val = document.getElementById('rollTimePicker').value;
-  const min = timeToMin(val);
-  const { machineId, rollIndex } = rollTimeCtx;
-  const st = cardState[machineId];
-
-  if (rollIndex === -1) {
-    // start time
-    st.machine.startTimeMin = min;
-    st.overrides = {};
-    S.saveOverrides(machineId, st.overrides);
-    S.saveMachine(machineId, st.machine);
-    document.getElementById(`startBtn_${machineId}`).textContent = formatTime(min);
-  } else {
-    // roll override
-    st.overrides[rollIndex] = min;
-    Object.keys(st.overrides).forEach(k => { if (parseInt(k) > rollIndex) delete st.overrides[k]; });
-    S.saveOverrides(machineId, st.overrides);
-  }
-  recalcCard(machineId);
-  closeOverlay('rollTimeOverlay');
-}
-
-function clearCard(id) {
-  const st = cardState[id];
-  st.overrides = {};
-  S.clearMachine(id);
-  updateCardBorder(id);
-  updateTimerDisplay(id, 0, false);
-  document.getElementById(`untilLabel_${id}`).style.display = 'none';
-  document.getElementById(`endTime_${id}`).style.display    = 'none';
-  document.getElementById(`curRevsDisplay_${id}`).style.display = 'none';
-  recalcCard(id);
-}
-
-// ═══════════════════════════════════════════════════════════════
-// PREDICT
-// ═══════════════════════════════════════════════════════════════
-
-function doPredict(id) {
-  const st   = cardState[id];
-  const curEl = document.getElementById(`curRevs_${id}`);
-  const cur  = parseFloat(curEl.value.replace(',','.')) || 3;
-  const tot  = st.machine.totalRevs;
-  const spd  = Math.max(0.1, st.machine.speed);
-  if (cur >= tot) return;
-
-  const { shift, lunchMin } = getShiftAndLunch();
-  const nowMin  = nowMinutes();
-  const remTime = Math.ceil((tot - cur) / spd);
-  let finMin    = (nowMin + remTime) % 1440;
-
-  if (st.machine.useLunch) {
-    const nowRel   = relMin(nowMin,   shift.startMin);
-    const lunchRel = relMin(lunchMin, shift.startMin);
-    if (nowRel < lunchRel && (nowRel + remTime) > lunchRel) finMin = (finMin + 30) % 1440;
-  }
-
-  const currentRolls = buildRolls(st.machine, lunchMin, st.machine.cleaningMin, shift.startMin, st.overrides, nowMin);
-  const idx = Math.max(0, currentRolls.findIndex(r => !r.isPast));
-  st.overrides[idx] = finMin;
-  Object.keys(st.overrides).forEach(k => { if (parseInt(k) > idx) delete st.overrides[k]; });
-  S.saveOverrides(id, st.overrides);
-  curEl.value = '';
-
-  S.setTimerActive(id, true);
-  updateCardBorder(id);
-  acquireWakeLock();
-  requestNotifPermission();
-  recalcCard(id);
-}
-
-// ═══════════════════════════════════════════════════════════════
-// TIMER LOOP
-// ═══════════════════════════════════════════════════════════════
-
-const alertedWarn = new Set();
-const alertedDone = new Set();
-const alertedLunch = new Set();
-const alertedShiftEnd = new Set();
-
-function updateTimerDisplay(id, secondsLeft, done) {
-  const el  = document.getElementById(`timer_${id}`);
-  const crd = document.getElementById(`curRevsDisplay_${id}`);
-  if (done || secondsLeft <= 0) {
-    el.textContent = '--:--:--';
-    el.className = 'timerDisplay';
-    crd.style.display = 'none';
-    return;
-  }
-  el.textContent = formatCountdown(secondsLeft);
-  el.className = 'timerDisplay ' + (secondsLeft <= 300 ? 'warn' : 'running');
-
-  // Estimated current revs
-  const st = cardState[id];
-  if (st) {
-    const remaining = Math.round(secondsLeft / 60 * st.machine.speed);
-    const cur = Math.max(0, st.machine.totalRevs - remaining);
-    crd.textContent = `~${cur} об`;
-    crd.style.display = '';
-  }
-}
-
-function tick() {
-  const nowSec = nowTotalSeconds();
-  const nowMin = nowMinutes();
-  const { shift, lunchMin } = getShiftAndLunch();
-  let anyActive = false;
-
-  for (let id = 1; id <= S.machineCount; id++) {
-    if (!S.isTimerActive(id)) continue;
-    const st = cardState[id];
-    if (!st) continue;
-    const overrides = st.overrides;
-    if (!Object.keys(overrides).length) continue;
-    anyActive = true;
-
-    const rolls  = buildRolls(st.machine, lunchMin, st.machine.cleaningMin, shift.startMin, overrides, nowMin);
-    const target = rolls.find(r => !r.isPast);
-
-    if (!target) {
-      const doneKey = id * 1000 + 999;
-      if (!alertedDone.has(doneKey)) {
-        alertedDone.add(doneKey);
-        S.setTimerActive(id, false);
-        updateCardBorder(id);
-        updateTimerDisplay(id, 0, true);
-        document.getElementById(`untilLabel_${id}`).style.display = 'none';
-        document.getElementById(`endTime_${id}`).style.display = 'none';
-        document.getElementById(`curRevsDisplay_${id}`).style.display = 'none';
-        const notifMs = S.notifMs;
-        showNotif(`🔔 ${st.machine.name}`, 'Рулон готов — пора менять!', notifMs);
-      }
-      continue;
-    }
-
-    let diff = target.finishMin * 60 - nowSec;
-    if (Math.abs(diff) > 43200) diff = diff + (diff < 0 ? 86400 : -86400);
-
-    updateTimerDisplay(id, diff, diff <= 0);
-    updateEndTimeDisplay(id, rolls);
-
-    const key = id * 1000 + target.index;
-    const notifMs = S.notifMs;
-
-    if (diff > 0 && diff <= 299 && !alertedWarn.has(key)) {
-      alertedWarn.add(key);
-      showNotif(`⏰ ${st.machine.name}`, 'До смены рулона менее 5 минут!', notifMs);
-    }
-    if (diff <= 0 && !alertedDone.has(key)) {
-      alertedDone.add(key);
-      alertedWarn.delete(key);
-      showNotif(`🔔 ${st.machine.name}`, 'Рулон готов — пора менять!', notifMs);
-      S.setTimerActive(id, false);
-      updateCardBorder(id);
-    }
-    if (diff > 300) { alertedWarn.delete(key); alertedDone.delete(key); }
-  }
-
-  // Lunch and shift-end warnings
-  const nowRel      = relMin(nowMin, shift.startMin);
-  const lunchRel    = relMin(lunchMin, shift.startMin);
-  const shiftEndRel = 480;
-  const diffLunch    = lunchRel - nowRel;
-  const diffShiftEnd = shiftEndRel - nowRel;
-
-  if (diffLunch >= 1 && diffLunch <= 5 && !alertedLunch.has(shift.index)) {
-    alertedLunch.add(shift.index);
-    showNotif('🍽 Обед через 5 минут', `Обед в ${formatTime(lunchMin)}`, 0);
-  }
-  if (diffLunch < 0 || diffLunch > 30) alertedLunch.delete(shift.index);
-
-  if (diffShiftEnd >= 1 && diffShiftEnd <= 5 && !alertedShiftEnd.has(shift.index)) {
-    alertedShiftEnd.add(shift.index);
-    showNotif('⏰ Конец смены через 5 минут', `Смена заканчивается в ${formatTime(shift.endMin)}`, 0);
-  }
-  if (diffShiftEnd < 0 || diffShiftEnd > 30) alertedShiftEnd.delete(shift.index);
-
-  if (!anyActive) releaseWakeLock();
-}
-
-// ═══════════════════════════════════════════════════════════════
-// MACHINE LIBRARY
-// ═══════════════════════════════════════════════════════════════
-
-function openPicker(id) {
-  pickerCtx = id;
-  const lib = S.loadLibrary();
-  const list = document.getElementById('pickerList');
-  list.innerHTML = '';
-  if (!lib.length) {
-    list.innerHTML = '<div style="color:var(--txtHint);text-align:center;padding:20px">Библиотека пуста</div>';
-  } else {
-    lib.forEach(def => {
-      const item = document.createElement('div');
-      item.className = 'machineItem';
-      const spd = def.speed === Math.floor(def.speed) ? def.speed.toString() : def.speed.toFixed(1);
-      item.innerHTML = `
-        <div style="flex:1">
-          <div class="machineItemName">${def.name}</div>
-          <div class="machineItemSub">${def.totalRevs}об, ${spd}об/мин, чист.${def.cleaningMin}мин</div>
-        </div>
-        <button class="machineItemDel" onclick="event.stopPropagation();deleteTemplate('${def.name.replace(/'/g,"\\'")}')">🗑</button>`;
-      item.addEventListener('click', () => loadFromLibrary(def));
-      list.appendChild(item);
-    });
-  }
-  openOverlay('pickerOverlay');
-}
-
-function loadFromLibrary(def) {
-  const id = pickerCtx;
-  if (!id) return;
-  const st = cardState[id];
-  const m  = st.machine;
-  m.name         = def.name;
-  m.totalRevs    = def.totalRevs;
-  m.speed        = def.speed;
-  m.cleaningMin  = def.cleaningMin;
-  m.useLunch     = def.useLunch;
-  S.saveMachine(id, m);
-  st.overrides = {};
-  S.saveOverrides(id, st.overrides);
-  populateCard(id);
-  recalcCard(id);
-  closeOverlay('pickerOverlay');
-}
-
-function deleteTemplate(name) {
-  S.deleteFromLibrary(name);
-  openPicker(pickerCtx); // refresh
-}
-
-function saveToLibrary() {
-  const id = pickerCtx;
-  if (!id) return;
-  const m = cardState[id].machine;
-  const def = { name: m.name, totalRevs: m.totalRevs, speed: m.speed, cleaningMin: m.cleaningMin, useLunch: m.useLunch };
-  S.upsertLibrary(def);
-  toast(`${m.name} — шаблон сохранён`);
-  closeOverlay('pickerOverlay');
-}
-
-function exportLibrary() {
-  const json = S.exportLibrary();
-  const blob = new Blob([json], { type: 'application/json' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = 'time_calculator_machines.json';
-  a.click(); URL.revokeObjectURL(url);
-  toast('Экспорт завершён');
-}
-
-document.getElementById('importFile').addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    const count = S.importLibrary(ev.target.result);
-    toast(count >= 0 ? `Импортировано: ${count} машин` : 'Ошибка импорта');
-    e.target.value = '';
-  };
-  reader.readAsText(file);
-});
-
-// ═══════════════════════════════════════════════════════════════
-// SETTINGS
-// ═══════════════════════════════════════════════════════════════
-
-const NOTIF_OPTIONS = [
-  { ms: 0,       label: 'Остаются (убрать вручную)' },
-  { ms: 30000,   label: 'Исчезают через 30 сек' },
-  { ms: 60000,   label: 'Исчезают через 1 мин' },
-  { ms: 300000,  label: 'Исчезают через 5 мин' },
-];
-
-let tmpCount = 3;
-function openSettings() {
-  // Build notif radios
-  const notifMs = S.notifMs;
-  const container = document.getElementById('notifRadios');
-  container.innerHTML = '';
-  NOTIF_OPTIONS.forEach(opt => {
-    const lbl = document.createElement('label');
-    lbl.className = 'radioLabel';
-    lbl.innerHTML = `<input type="radio" name="notif" value="${opt.ms}" ${opt.ms === notifMs ? 'checked' : ''}> ${opt.label}`;
-    container.appendChild(lbl);
-  });
-  // Machine count stepper
-  tmpCount = S.machineCount;
-  document.getElementById('cntVal').textContent = tmpCount;
-  // Language
-  document.getElementById('langSelect').value = S.language;
-  openOverlay('settingsOverlay');
-}
-
-document.getElementById('cntMinus').onclick = () => { if (tmpCount > 1) { tmpCount--; document.getElementById('cntVal').textContent = tmpCount; } };
-document.getElementById('cntPlus').onclick  = () => { if (tmpCount < 10) { tmpCount++; document.getElementById('cntVal').textContent = tmpCount; } };
-
-function saveSettings() {
-  const sel = document.querySelector('input[name="notif"]:checked');
-  if (sel) S.notifMs = parseInt(sel.value);
-  const newLang    = document.getElementById('langSelect').value;
-  const langChanged  = newLang !== S.language;
-  const countChanged = tmpCount !== S.machineCount;
-
-  if (langChanged) { S.language = newLang; applyLanguage(); }
-  if (countChanged) { S.machineCount = tmpCount; rebuildCards(); }
-  closeOverlay('settingsOverlay');
-}
-
-// ═══════════════════════════════════════════════════════════════
-// LANGUAGE
-// ═══════════════════════════════════════════════════════════════
-
-const L = {
-  ru: {
-    appTitle:'TIME CALC', shift0:'1-я смена (06–14)', shift1:'2-я смена (14–22)', shift2:'3-я смена (22–06)',
-    predict:'ПРОГ\nНОЗ', settings:'НАСТРОЙКИ ▾', settingsOpen:'НАСТРОЙКИ ▴',
-    lunchSwitch:'Учитывать обед', clear:'[ сброс ]', rollDone:'ГОТОВО',
-    tagLunch:'ОБЕД', tagOut:'ВНЕ СМЕНЫ', until:'до',
-    settingsTitle:'НАСТРОЙКИ', notifSection:'УВЕДОМЛЕНИЯ О РУЛОНАХ',
-    countSection:'КОЛИЧЕСТВО МАШИН', langSection:'ЯЗЫК', exportImport:'ЭКСПОРТ / ИМПОРТ МАШИН',
-    exportBtn:'↑ Экспорт', importBtn:'↓ Импорт', saveBtn:'Сохранить',
-    notifOptions:['Остаются (убрать вручную)','Исчезают через 30 сек','Исчезают через 1 мин','Исчезают через 5 мин'],
-    pickerTitle:'ВЫБОР МАШИНЫ', saveTemplate:'＋ Сохранить шаблон', emptyLib:'Библиотека пуста',
-    lunchTitle:'ВРЕМЯ ОБЕДА', rollTimeTitle:'ВРЕМЯ РУЛОНА',
-    resetBtn:'[ ПОЛНЫЙ СБРОС ]', resetConfirm:'Сбросить все настройки и данные?',
-    templateSaved:'шаблон сохранён', exported:'Экспорт завершён', imported:'Импортировано: %d машин', importErr:'Ошибка импорта',
-    start:'СТАРТ', langName:'Русский',
-  },
-  pl: {
-    appTitle:'TIME CALC', shift0:'1-sza zmiana (06–14)', shift1:'2-ga zmiana (14–22)', shift2:'3-cia zmiana (22–06)',
-    predict:'PROG\nNOZA', settings:'USTAWIENIA ▾', settingsOpen:'USTAWIENIA ▴',
-    lunchSwitch:'Uwzględnij obiad', clear:'[ reset ]', rollDone:'GOTOWE',
-    tagLunch:'OBIAD', tagOut:'POZA ZMIANĄ', until:'do',
-    settingsTitle:'USTAWIENIA', notifSection:'POWIADOMIENIA O NAWOJACH',
-    countSection:'LICZBA MASZYN', langSection:'JĘZYK', exportImport:'EKSPORT / IMPORT MASZYN',
-    exportBtn:'↑ Eksport', importBtn:'↓ Import', saveBtn:'Zapisz',
-    notifOptions:['Pozostają (usuń ręcznie)','Znikają po 30 sek','Znikają po 1 min','Znikają po 5 min'],
-    pickerTitle:'WYBÓR MASZYNY', saveTemplate:'＋ Zapisz szablon', emptyLib:'Biblioteka pusta',
-    lunchTitle:'CZAS OBIADU', rollTimeTitle:'CZAS NAWOJU',
-    resetBtn:'[ PEŁNY RESET ]', resetConfirm:'Zresetować wszystkie ustawienia i dane?',
-    templateSaved:'szablon zapisany', exported:'Eksport zakończony', imported:'Zaimportowano: %d maszyn', importErr:'Błąd importu',
-    start:'START', langName:'Polski',
-  }
-};
-
-function t(key, ...args) {
-  const lang = S.language;
-  let str = (L[lang] || L.ru)[key] || key;
-  args.forEach(a => { str = str.replace('%d', a); });
-  return str;
-}
-
-function applyLanguage() {
-  document.getElementById('appTitle').textContent = t('appTitle');
-  document.getElementById('shiftSelect').options[0].textContent = t('shift0');
-  document.getElementById('shiftSelect').options[1].textContent = t('shift1');
-  document.getElementById('shiftSelect').options[2].textContent = t('shift2');
-  document.getElementById('resetBtn').textContent = t('resetBtn');
-  document.querySelector('.sheetTitle') && (document.querySelector('.sheetTitle').textContent = t('settingsTitle'));
-  document.getElementById('settingsOverlay').querySelector('.sheetTitle').textContent = t('settingsTitle');
-  document.getElementById('lunchOverlay').querySelector('.sheetTitle').textContent = t('lunchTitle');
-  document.getElementById('rollTimeOverlay').querySelector('.sheetTitle').textContent = t('rollTimeTitle');
-  document.getElementById('pickerOverlay').querySelector('.sheetTitle').textContent = t('pickerTitle');
-
-  // Update all card labels per language
-  for (let id = 1; id <= S.machineCount; id++) {
-    const lunchLbl = document.querySelector(`#card_${id} .lunchToggle`);
-    if (lunchLbl) lunchLbl.lastChild.textContent = ' ' + t('lunchSwitch');
-    const clearBtn = document.querySelector(`#card_${id} .clearBtn`);
-    if (clearBtn) clearBtn.textContent = t('clear');
-    const untilLbl = document.getElementById(`untilLabel_${id}`);
-    if (untilLbl) untilLbl.textContent = t('until');
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════
-// OVERLAYS
-// ═══════════════════════════════════════════════════════════════
-
-function openOverlay(id) {
-  document.getElementById(id).classList.add('open');
-}
-function closeOverlay(id) {
-  document.getElementById(id).classList.remove('open');
-}
-// Close on backdrop click
-document.querySelectorAll('.overlay').forEach(ov => {
-  ov.addEventListener('click', e => { if (e.target === ov) ov.classList.remove('open'); });
-});
-
-// ═══════════════════════════════════════════════════════════════
-// LUNCH
-// ═══════════════════════════════════════════════════════════════
-
-function openLunch() {
-  const { shift, lunchMin } = getShiftAndLunch();
-  document.getElementById('lunchTimePicker').value = minToTime(lunchMin);
-  openOverlay('lunchOverlay');
-}
-function saveLunch() {
-  const val = document.getElementById('lunchTimePicker').value;
-  S.lunchMin = timeToMin(val);
-  S.lunchCustomized = true;
-  document.getElementById('lunchBtn').textContent = formatTime(S.lunchMin);
-  for (let id = 1; id <= S.machineCount; id++) recalcCard(id);
-  closeOverlay('lunchOverlay');
-}
-
-// ═══════════════════════════════════════════════════════════════
-// BUILD / REBUILD
-// ═══════════════════════════════════════════════════════════════
-
-function rebuildCards() {
-  const container = document.getElementById('machinesContainer');
-  container.innerHTML = '';
-  const count = S.machineCount;
-  for (let id = 1; id <= count; id++) {
-    const div = document.createElement('div');
-    div.innerHTML = buildCardHTML(id);
-    container.appendChild(div.firstElementChild);
-    initCard(id);
-  }
-  applyLanguage();
-}
-
-function refreshAllFromStorage() {
-  // Sync any changes from storage (e.g. after visibility change)
-  for (let id = 1; id <= S.machineCount; id++) {
-    if (!cardState[id]) continue;
-    cardState[id].machine   = S.loadMachine(id);
-    cardState[id].overrides = S.loadOverrides(id);
-    applySavedShiftIfDefault(cardState[id].machine);
-    populateCard(id);
-    recalcCard(id);
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════
-// SHIFT CHANGE
-// ═══════════════════════════════════════════════════════════════
-
-document.getElementById('shiftSelect').addEventListener('change', e => {
-  const idx = parseInt(e.target.value);
-  S.shiftIndex = idx;
-  const shift = SHIFTS[idx];
-  if (!S.lunchCustomized) {
-    S.lunchMin = shift.lunchMin;
-    document.getElementById('lunchBtn').textContent = formatTime(shift.lunchMin);
-  }
-  // Apply shift to all cards
-  for (let id = 1; id <= S.machineCount; id++) {
-    const st = cardState[id];
-    if (!st) continue;
-    const standard = new Set([360, 840, 1320]);
-    if (standard.has(st.machine.startTimeMin)) {
-      st.machine.startTimeMin = shift.startMin;
-      document.getElementById(`startBtn_${id}`).textContent = formatTime(shift.startMin);
-      st.overrides = {};
-      S.setTimerActive(id, false);
-      S.saveOverrides(id, st.overrides);
-      S.saveMachine(id, st.machine);
-      updateCardBorder(id);
-    }
-    recalcCard(id);
-  }
-});
-
-// ═══════════════════════════════════════════════════════════════
-// BOOT
-// ═══════════════════════════════════════════════════════════════
-
-document.getElementById('lunchBtn').addEventListener('click', openLunch);
-document.getElementById('settingsBtn').addEventListener('click', openSettings);
-document.getElementById('resetBtn').addEventListener('click', () => {
-  if (confirm(t('resetConfirm'))) { S.hardReset(); location.reload(); }
-});
-
-// Detect and apply current shift on boot
-(function initShift() {
-  const detected = detectShift();
-  const saved    = S.shiftIndex;
-  // Use detected shift
-  S.shiftIndex = detected.index;
-  document.getElementById('shiftSelect').value = detected.index;
-  if (!S.lunchCustomized) {
-    S.lunchMin = detected.lunchMin;
-  }
-  document.getElementById('lunchBtn').textContent = formatTime(
-    S.lunchMin >= 0 ? S.lunchMin : detected.lunchMin
-  );
-})();
-
-rebuildCards();
-applyLanguage();
-
-// Main timer interval
-setInterval(tick, 1000);
-
-// Re-sync on visibility restore
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') refreshAllFromStorage();
-});
-
-// Service worker
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
-}
-</script>
-</body>
-</html>
+'use strict';
+const $=s=>document.querySelector(s),g=(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},sv=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const md=(a,b)=>((a%b)+b)%b,pad=v=>String(v).padStart(2,'0'),esc=x=>String(x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const nowMin=()=>{const d=new Date();return d.getHours()*60+d.getMinutes()},nowSec=()=>{const d=new Date();return d.getHours()*3600+d.getMinutes()*60+d.getSeconds()};
+const rel=(a,s)=>a>=s?a-s:1440-s+a,ft=m=>{m=md(m,1440);return pad(m/60|0)+':'+pad(m%60)},fc=x=>pad(x/3600|0)+':'+pad(x%3600/60|0)+':'+pad(x%60);
+const SH=[{s:360,l:600},{s:840,l:1080},{s:1320,l:120}],detect=()=>{const n=nowMin();return n>=360&&n<840?0:n>=840&&n<1320?1:2};
+const T={ru:{sh:['1-я смена (06–14)','2-я смена (14–22)','3-я смена (22–06)'],go:'ПРОГНОЗ',obr:'обороты',st:'СТАРТ',set:'НАСТРОЙКИ',rv:'ОБОРОТОВ',sp:'СК/МИН',cl:'ЧИСТКА',sn:'ОТРЕЗКОВ В РУЛОНЕ',ss:'НАЧАТЬ С ОТРЕЗКА',lu:'Учитывать обед',cr:'[ сброс ]',un:'до',fi:'финиш:',tl:'ОБЕД',to:'ВНЕ СМЕНЫ',sg:'Отрезок ',en:'КОНЕЦ РУЛОНА №',cfg:'Настройки',n0:'Не исчезают',n1:'30 секунд',n2:'1 минута',n3:'5 минут',nt:'УВЕДОМЛЕНИЯ ИСЧЕЗАЮТ ЧЕРЕЗ',mc:'КОЛИЧЕСТВО МАШИН',lg:'ЯЗЫК',wl:'Не гасить экран',sa:'Сохранить',ca:'Отмена',ex:'↑ Экспорт машин',im:'↓ Импорт машин',rs:'[ ПОЛНЫЙ СБРОС ]',rq:'Сбросить все настройки и данные?',pk:'Выбор машины',ad:'＋ Сохранить текущую как шаблон',em:'Шаблонов нет',ts:'Измерение скорости',tp:'ТАП',tr:'Сброс',ap:'Применить',th:'Каждый тап = пол-оборота. Пауза 4 с начинает новый замер.',ta:'тапов',wn:'До смены рулона менее 5 минут!',dn:'Рулон готов — пора менять!',lw:'Обед через 5 минут',ew:'Конец смены через 5 минут',ok:'Готово',bn:'Разрешить уведомления',tm:'Время'},
+pl:{sh:['1-sza zmiana (06–14)','2-ga zmiana (14–22)','3-cia zmiana (22–06)'],go:'PROGNOZA',obr:'obroty',st:'START',set:'USTAWIENIA',rv:'OBROTÓW',sp:'PR/MIN',cl:'CZYSZCZENIE',sn:'ODCINKÓW W NAWOJU',ss:'ZACZNIJ OD ODCINKA',lu:'Uwzględnij obiad',cr:'[ reset ]',un:'do',fi:'finisz:',tl:'OBIAD',to:'POZA ZMIANĄ',sg:'Odcinek ',en:'KONIEC NAWOJU nr ',cfg:'Ustawienia',n0:'Nie znikają',n1:'30 sekund',n2:'1 minuta',n3:'5 minut',nt:'POWIADOMIENIA ZNIKAJĄ PO',mc:'LICZBA MASZYN',lg:'JĘZYK',wl:'Nie wygaszaj ekranu',sa:'Zapisz',ca:'Anuluj',ex:'↑ Eksport maszyn',im:'↓ Import maszyn',rs:'[ PEŁNY RESET ]',rq:'Zresetować wszystkie ustawienia i dane?',pk:'Wybór maszyny',ad:'＋ Zapisz bieżącą jako szablon',em:'Brak szablonów',ts:'Pomiar prędkości',tp:'TAP',tr:'Reset',ap:'Zastosuj',th:'Każde tapnięcie = pół obrotu. Przerwa 4 s zaczyna nowy pomiar.',ta:'tapnięć',wn:'Do zmiany nawoju mniej niż 5 minut!',dn:'Nawój gotowy — czas wymieniać!',lw:'Obiad za 5 minut',ew:'Koniec zmiany za 5 minut',ok:'Gotowe',bn:'Zezwól na powiadomienia',tm:'Czas'}};
+const L=()=>g('lang','ru'),t=k=>T[L()][k];
+const curI=()=>g('sh',0),lunch=()=>{const v=g('lm'+curI(),-1);return v>=0?v:SH[curI()].l};
+const isCmo=m=>/^cmo/i.test(m.name.trim()),seg=m=>isCmo(m)&&m.segmentCount>0;
+const loadM=id=>({id,name:'Машина '+id,totalRevs:5000,speed:100,startTimeMin:360,useLunch:true,cleaningMin:12,segmentCount:0,startSegmentNumber:1,...g('m'+id,{}),id});
+// Расписание рулонов — тот же алгоритм, что buildRolls() в Android
+function build(m,lm,ss,ov,now){const d=Math.ceil(m.totalRevs/Math.max(.1,m.speed)),lr=rel(lm,ss),out=[];let cur=m.startTimeMin,ld=false;
+for(let i=0;i<20;i++){let f,hl=false;
+if(ov[i]!=null){f=ov[i];if(!ld&&m.useLunch&&lr<=rel(f,ss))ld=true}
+else{const cr=rel(cur,ss);if(m.useLunch&&!ld&&cr<lr&&cr+d>lr){cur+=30;ld=true;hl=true}f=cur+d}
+const fr=rel(f,ss),o=fr>480;out.push({i,f:md(f,1440),hl,o,p:rel(now,ss)>fr});if(o)break;cur=f+m.cleaningMin}
+return out}
+// Только подписи строк (расчёт времени не затрагивается)
+function label(m,i){const c=m.segmentCount,st=Math.min(Math.max(m.startSegmentNumber,1),c),z=st-1+i,n=z%c+1;return{n,end:n===c,roll:(z/c|0)+1}}
+// ---- UI helpers
+const OV=$('#ov'),box=$('#box'),cards=[],al={};
+function modal(h){box.innerHTML=h;OV.classList.add('o');return box}const close=()=>OV.classList.remove('o');OV.onclick=e=>{if(e.target===OV)close()};
+let tbT;function toast(x){const b=$('#tb');b.textContent=x;b.style.display='block';clearTimeout(tbT);tbT=setTimeout(()=>b.style.display='none',6000)}
+let ac;function beep(){try{ac=ac||new AudioContext();const o=ac.createOscillator(),n=ac.createGain();o.connect(n);n.connect(ac.destination);n.gain.value=.15;o.frequency.value=880;o.start();o.stop(ac.currentTime+.4)}catch(e){}}
+async function notify(title,body,tag){toast(title+' — '+body);navigator.vibrate&&navigator.vibrate([400,150,400]);beep();
+if(!('Notification' in window)||Notification.permission!=='granted')return;const to=g('nt',0);
+try{const r=await navigator.serviceWorker.getRegistration(),o={body,tag,icon:'icon-192.png',requireInteraction:to===0};
+if(r){await r.showNotification(title,o);if(to)setTimeout(async()=>(await r.getNotifications({tag})).forEach(n=>n.close()),to)}else new Notification(title,o)}catch(e){}}
+function pickTime(cur,cb){const b=modal(`<h3>${t('tm')}</h3><input type="time" id="tp" value="${ft(cur)}" style="height:60px;font-size:28px;text-align:center"><div class="r"><button class="b" id="x">${t('ca')}</button><button class="b p" id="y">${t('sa')}</button></div>`);
+b.querySelector('#x').onclick=close;b.querySelector('#y').onclick=()=>{const v=b.querySelector('#tp').value;if(v){const[h,mm]=v.split(':').map(Number);cb(h*60+mm)}close()}}
+// ---- library
+const lib=()=>g('lib',[]);function upsert(d){const l=lib(),i=l.findIndex(x=>x.name.toLowerCase()===d.name.toLowerCase());i>=0?l[i]=d:l.push(d);sv('lib',l)}
+function exportLib(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(lib(),null,1)],{type:'application/json'}));a.download='time_calculator_machines.json';a.click();toast(t('ok'))}
+function importLib(){const i=document.createElement('input');i.type='file';i.accept='.json,application/json';i.onchange=async()=>{try{const l=JSON.parse(await i.files[0].text());l.forEach(upsert);toast(l.length+' ✓')}catch(e){toast('✗ JSON')}};i.click()}
+// ---- card
+function Card(id){
+const el=document.createElement('div');el.className='card';el.dataset.id=id;
+let m=loadM(id),ovr=g('ov'+id,{}),act=g('ta'+id,false),wn=null;
+el.innerHTML=`<div class="r A"><span class="h">⠿</span><input class="nm" data-k="name" autocomplete="off"><button data-k="pick" style="width:36px;flex:none">▾</button><input class="cr" data-k="cur" type="number" inputmode="decimal" placeholder="${t('obr')}"><button class="pg" data-k="go">${t('go')}</button><button class="ghost" data-k="ex" style="width:30px;flex:none;font-size:18px">▸</button></div>
+<div class="r" style="height:38px;margin-top:4px"><span class="tm" data-k="tm">--:--:--</span><small data-k="rv" style="color:var(--h)"></small><span style="flex:1"></span><small data-k="ul">${t('un')}</small><b data-k="et" style="font-size:18px"></b></div>
+<div class="r" style="justify-content:flex-end"><small style="color:var(--h)">${t('fi')}</small><b data-k="lr" style="color:var(--s)"></b></div>
+<div data-k="xp" hidden><hr><div class="r" style="gap:8px"><div class="f"><label>${t('st')}</label><button data-k="stb"></button></div><div class="f"><label>&nbsp;</label><button data-k="pb" style="font-size:12px">${t('set')} ▾</button></div></div>
+<div class="r" data-k="pp" hidden style="margin-top:8px"><div class="f"><label>${t('rv')}</label><input data-k="rev" type="number" inputmode="numeric"></div><div class="f"><label>${t('sp')}</label><input data-k="spd" inputmode="decimal"></div><div class="f"><label>${t('cl')}</label><input data-k="cln" type="number" inputmode="numeric"></div></div>
+<div class="r" data-k="sp2" hidden style="margin-top:8px"><div class="f"><label style="color:var(--p)">${t('sn')}</label><input data-k="sn" type="number" inputmode="numeric" style="color:var(--p)"></div><div class="f"><label style="color:var(--p)">${t('ss')}</label><select data-k="ssel" style="color:var(--p)"></select></div></div>
+<div class="r" style="height:48px;margin:6px 0"><label class="lu"><input type="checkbox" data-k="lu"> ${t('lu')}</label><button class="ghost" data-k="clr">${t('cr')}</button></div><div data-k="list"></div></div>`;
+const q=k=>el.querySelector('[data-k='+k+']'),saveM=()=>sv('m'+id,m),saveO=()=>sv('ov'+id,ovr),rolls=()=>build(m,lunch(),SH[curI()].s,ovr,nowMin());
+function fix(){const s=SH[curI()].s;if([360,840,1320].includes(m.startTimeMin)&&m.startTimeMin!==s){m.startTimeMin=s;saveM()}}
+function fill(){q('name').value=m.name;q('rev').value=m.totalRevs;q('spd').value=m.speed;q('cln').value=m.cleaningMin;q('lu').checked=m.useLunch;q('stb').textContent=ft(m.startTimeMin);
+q('sn').value=m.segmentCount||'';const c=Math.max(m.segmentCount,1);q('ssel').innerHTML=Array.from({length:c},(_,i)=>`<option ${i+1===Math.min(m.startSegmentNumber,c)?'selected':''}>${i+1}</option>`).join('');q('sp2').hidden=!(isCmo(m)&&!q('xp').hidden)}
+function setOv(i,f){ovr[i]=f;for(const k in ovr)if(+k>i)delete ovr[k];saveO()}
+function reset(){q('tm').textContent='--:--:--';q('tm').className='tm';q('rv').textContent=''}
+function recalc(){const rs=rolls(),cm=seg(m),lst=q('list');lst.innerHTML='';
+rs.forEach(r=>{const d=document.createElement('div');d.className='rl';d.style.opacity=(r.p||r.o)?0.35:1;let lb='№'+(r.i+1),cl='';
+if(cm){const s=label(m,r.i);lb=s.end?t('en')+s.roll:t('sg')+s.n;cl=s.end?'color:var(--a)':'color:var(--p)'}
+d.innerHTML=`<b style="${cl}">${lb}</b><span class="tg">${r.hl?`<i style="color:var(--w)">${t('tl')}</i>`:''}${r.o&&!r.p?`<i style="color:var(--r)">${t('to')}</i>`:''}</span><button class="rt">${ft(r.f)}</button>`;
+d.querySelector('.rt').onclick=()=>pickTime(r.f,v=>{setOv(r.i,v);recalc()});lst.append(d)});
+const nx=rs.find(r=>!r.p),la=rs.filter(r=>!r.o).pop();q('et').textContent=act&&nx?ft(nx.f):'';q('ul').hidden=!(act&&nx);q('lr').textContent=la?ft(la.f):''}
+function finish(msg){act=false;sv('ta'+id,false);el.classList.remove('on');reset();if(msg)notify(msg[0]+' '+m.name,msg[1],'d'+id);recalc()}
+function tick(){if(!act||!Object.keys(ovr).length)return;const tg=rolls().find(r=>!r.p);if(!tg)return finish();
+let d=tg.f*60-nowSec();if(Math.abs(d)>43200)d+=d<0?86400:-86400;if(d<=0)return finish(['🔔',t('dn')]);
+if(d<300&&wn!==tg.i){wn=tg.i;notify('⏰ '+m.name,t('wn'),'w'+id)}if(d>300)wn=null;
+q('tm').textContent=fc(d);q('tm').className='tm '+(d<=300?'warn':'run');
+q('rv').textContent='~'+Math.max(0,Math.min(m.totalRevs,m.totalRevs-Math.round(d/60*m.speed)))+' об'}
+function go(){const cur=Math.trunc(parseFloat(String(q('cur').value).replace(',','.')))||3,tot=m.totalRevs;if(cur>=tot)return;
+if('Notification' in window&&Notification.permission==='default')Notification.requestPermission();
+const n=nowMin(),rt=Math.ceil((tot-cur)/Math.max(.1,m.speed)),ss=SH[curI()].s,lm=lunch();let f=(n+rt)%1440;
+if(m.useLunch){const nr=rel(n,ss),lr=rel(lm,ss);if(nr<lr&&nr+rt>lr)f=(f+30)%1440}
+setOv(Math.max(0,rolls().findIndex(r=>!r.p)),f);q('cur').value='';act=true;sv('ta'+id,true);el.classList.add('on');wlock();recalc();tick()}
+function picker(){const l=lib().slice().sort((a,b)=>a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+const b=modal(`<h3>${t('pk')}</h3>${l.length?l.map((d,i)=>`<div class="li" data-i="${i}"><div><b>${esc(d.name)}</b><small>${d.totalRevs} · ${d.speed} · ${d.cleaningMin}</small></div><button class="x" data-d="${i}">🗑</button></div>`).join(''):`<p>${t('em')}</p>`}<button class="b" id="sa">${t('ad')}</button>`);
+b.querySelectorAll('.li').forEach(e=>e.onclick=()=>{const d=l[e.dataset.i];m={...m,name:d.name,totalRevs:d.totalRevs,speed:d.speed,cleaningMin:d.cleaningMin,useLunch:d.useLunch,segmentCount:d.segmentCount||0,startSegmentNumber:d.startSegmentNumber||1};ovr={};saveM();saveO();fill();recalc();close()});
+b.querySelectorAll('[data-d]').forEach(e=>e.onclick=ev=>{ev.stopPropagation();sv('lib',lib().filter(x=>x.name!==l[e.dataset.d].name));picker()});
+b.querySelector('#sa').onclick=()=>{upsert({name:m.name,totalRevs:m.totalRevs,speed:m.speed,cleaningMin:m.cleaningMin,useLunch:m.useLunch,segmentCount:m.segmentCount,startSegmentNumber:m.startSegmentNumber});close();toast(m.name+' ✓')}}
+function tapDlg(){let tt=[],last=0,stale=false,to;const b=modal(`<h3>${t('ts')}</h3><div class="big" id="sv">--</div><div id="tc" style="text-align:center;color:var(--s)">0 ${t('ta')}</div><button class="tap" id="tap">${t('tp')}</button><small style="text-align:center">${t('th')}</small><div class="r"><button class="b" id="trs">${t('tr')}</button><button class="b p" id="tok">${t('ap')}</button></div>`);
+const calc=()=>tt.length<2?0:(tt.length-1)*30000/(tt[tt.length-1]-tt[0]),upd=()=>{b.querySelector('#sv').textContent=last?Math.round(last*10)/10:'--';b.querySelector('#tc').textContent=tt.length+' '+t('ta')};
+b.querySelector('#tap').onclick=()=>{if(stale){tt=[];stale=false}tt.push(performance.now());const c=calc();if(c)last=c;upd();clearTimeout(to);to=setTimeout(()=>stale=true,4000)};
+b.querySelector('#trs').onclick=()=>{tt=[];last=0;stale=false;upd()};
+b.querySelector('#tok').onclick=()=>{const v=tt.length>=2?calc():last;if(v>.1){m.speed=Math.round(v*10)/10;saveM();fill();recalc()}clearTimeout(to);close()}}
+// listeners
+const on=(k,ev,f)=>q(k)[ev]=f;
+on('name','oninput',e=>{m.name=e.target.value;saveM();fill();recalc()});
+on('rev','oninput',e=>{const v=parseInt(e.target.value);if(v>0){m.totalRevs=v;saveM();recalc()}});
+on('spd','oninput',e=>{const v=parseFloat(e.target.value.replace(',','.'));if(v>0){m.speed=Math.max(.1,v);saveM();recalc()}});
+on('cln','oninput',e=>{const v=parseInt(e.target.value);if(v>=0){m.cleaningMin=v;saveM();recalc()}});
+on('sn','oninput',e=>{m.segmentCount=Math.max(0,parseInt(e.target.value)||0);m.startSegmentNumber=Math.min(m.startSegmentNumber,Math.max(m.segmentCount,1));saveM();fill();recalc()});
+on('ssel','onchange',e=>{m.startSegmentNumber=e.target.selectedIndex+1;saveM();recalc()});
+on('lu','onchange',e=>{m.useLunch=e.target.checked;if(!act){ovr={};saveO()}saveM();recalc()});
+on('ex','onclick',()=>{const h=q('xp').hidden=!q('xp').hidden;q('ex').textContent=h?'▸':'▾';fill()});
+on('pb','onclick',()=>{const h=q('pp').hidden=!q('pp').hidden;q('pb').textContent=t('set')+(h?' ▾':' ▴')});
+on('stb','onclick',()=>pickTime(m.startTimeMin,v=>{m.startTimeMin=v;ovr={};saveM();saveO();fill();recalc()}));
+on('clr','onclick',()=>{ovr={};saveO();finish()});on('go','onclick',go);on('pick','onclick',picker);
+{const s=q('spd');let lp;s.addEventListener('pointerdown',()=>lp=setTimeout(tapDlg,600));['pointerup','pointerleave','pointercancel'].forEach(e=>s.addEventListener(e,()=>clearTimeout(lp)))}
+{const h=el.querySelector('.h');h.onpointerdown=e=>{h.setPointerCapture(e.pointerId);el.classList.add('drag');const L=$('#list');
+h.onpointermove=ev=>{const nx=[...L.children].filter(x=>x!==el).find(x=>{const r=x.getBoundingClientRect();return ev.clientY<r.top+r.height/2});L.insertBefore(el,nx||null)};
+h.onpointerup=h.onpointercancel=()=>{el.classList.remove('drag');h.onpointermove=h.onpointerup=h.onpointercancel=null;sv('order',[...L.children].map(x=>+x.dataset.id))}}}
+fix();fill();if(act)el.classList.add('on');recalc();
+return{el,id,tick,sync(){fix();fill();recalc()},applyShift(i){m.startTimeMin=SH[i].s;ovr={};saveM();saveO();act=false;sv('ta'+id,false);el.classList.remove('on');reset();fill();recalc()},recalc,any:()=>act}}
+// ---- global
+function setShift(i,manual){sv('sh',i);if(!g('lc'+i,false))sv('lm'+i,SH[i].l);$('#lb').textContent=ft(lunch());$('#hs').value=i;cards.forEach(c=>manual?c.applyShift(i):c.sync())}
+function applyLang(){document.documentElement.lang=L();const s=$('#hs');s.innerHTML=t('sh').map((x,i)=>`<option value="${i}">${x}</option>`).join('');s.value=curI();$('#rsb').textContent=t('rs')}
+function rebuild(){const n=g('mc',3),Ls=$('#list');Ls.innerHTML='';cards.length=0;const o=g('order',[]).filter(i=>i>=1&&i<=n);for(let i=1;i<=n;i++)if(!o.includes(i))o.push(i);sv('order',o);o.forEach(id=>{const c=Card(id);cards.push(c);Ls.append(c.el)})}
+let lock;async function wlock(){if(!g('wl',true)||lock||!navigator.wakeLock||document.hidden)return;try{lock=await navigator.wakeLock.request('screen');lock.onrelease=()=>lock=null}catch(e){}}
+function settings(){let mc=g('mc',3);const b=modal(`<h3>${t('cfg')}</h3><label>${t('nt')}</label>${[0,3e4,6e4,3e5].map((v,i)=>`<label class="rd"><input type="radio" name="nt" value="${v}" ${g('nt',0)===v?'checked':''}> ${t('n'+i)}</label>`).join('')}
+<label>${t('mc')}</label><div class="r"><button class="b" id="mm">−</button><b id="mv" style="flex:1;text-align:center;font-size:22px">${mc}</b><button class="b" id="mp">+</button></div>
+<label>${t('lg')}</label><select id="lg" class="b"><option value="ru">Русский</option><option value="pl">Polski</option></select>
+<label class="rd"><input type="checkbox" id="wl" ${g('wl',true)?'checked':''}> ${t('wl')}</label><button class="b" id="nb">${t('bn')}</button>
+<div class="r"><button class="b" id="ex">${t('ex')}</button><button class="b" id="im">${t('im')}</button></div><div class="r" style="margin-top:8px"><button class="b" id="x">${t('ca')}</button><button class="b p" id="y">${t('sa')}</button></div>`);
+const v=b.querySelector('#mv');b.querySelector('#lg').value=L();
+b.querySelector('#mm').onclick=()=>{if(mc>1)v.textContent=--mc};b.querySelector('#mp').onclick=()=>{if(mc<10)v.textContent=++mc};
+b.querySelector('#nb').onclick=()=>'Notification' in window?Notification.requestPermission().then(p=>toast(p)):toast('—');
+b.querySelector('#ex').onclick=exportLib;b.querySelector('#im').onclick=importLib;b.querySelector('#x').onclick=close;
+b.querySelector('#y').onclick=()=>{sv('nt',+b.querySelector('input[name=nt]:checked').value);sv('wl',b.querySelector('#wl').checked);const nl=b.querySelector('#lg').value,ch=nl!==L()||mc!==g('mc',3);sv('lang',nl);sv('mc',mc);close();applyLang();if(ch)rebuild();wlock()}}
+$('#hs').onchange=e=>setShift(+e.target.value,true);
+$('#lb').onclick=()=>pickTime(lunch(),v=>{sv('lm'+curI(),v);sv('lc'+curI(),true);$('#lb').textContent=ft(v);cards.forEach(c=>c.recalc())});
+$('#cg').onclick=settings;$('#rsb').onclick=()=>{if(confirm(t('rq'))){localStorage.clear();location.reload()}};
+function shiftEvents(){const i=curI(),s=SH[i].s,n=rel(nowMin(),s),dl=rel(lunch(),s)-n,de=480-n;
+if(dl>=1&&dl<=5&&!al['l'+i]){al['l'+i]=1;notify('🍽 '+t('lw'),ft(lunch()),'lw')}if(dl<0||dl>30)delete al['l'+i];
+if(de>=1&&de<=5&&!al['e'+i]){al['e'+i]=1;notify('⏰ '+t('ew'),ft(s+480),'ew')}if(de<0||de>30)delete al['e'+i]}
+document.addEventListener('click',e=>{ac=ac||new AudioContext();ac.resume&&ac.resume();if(e.target.closest('button')&&navigator.vibrate)navigator.vibrate(8)});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)return;const d=detect();if(d!==curI())setShift(d,false);cards.forEach(c=>c.sync());wlock()});
+{const d=detect();sv('sh',d);if(!g('lc'+d,false))sv('lm'+d,SH[d].l)}
+applyLang();$('#lb').textContent=ft(lunch());rebuild();wlock();
+setInterval(()=>{cards.forEach(c=>c.tick());shiftEvents()},1000);
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script></body></html>
